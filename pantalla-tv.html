@@ -633,7 +633,13 @@ async function saveToCache() {
 async function syncCommonFiles() {
   if (!_idb) return;
   const commonIds = new Set(_assignments['common'] || []);
-  const toSync = Object.values(_allFilesMap).filter(f => commonIds.has(f.id));
+  // Solo cachear fotos y música — los vídeos se sirven directamente desde Cloudinary
+  // sin descargar (son demasiado grandes y saturan el ancho de banda)
+  const toSync = Object.values(_allFilesMap).filter(f => {
+    if (!commonIds.has(f.id)) return false;
+    const type = f.type || '';
+    return type.startsWith('image/') || type.startsWith('audio/');
+  });
   if (!toSync.length) return;
 
   const setSyncMsg = msg => {
@@ -1206,7 +1212,7 @@ function renderTicker() {
     let t = m.text || '';
     if (weatherTemp !== null) t = t.replace(/\{temp\}/g, weatherTemp + '°C');
     return t;
-  }) : ['Bienvenido · ' + ((bizName && bizName !== 'undefined') ? bizName : 'SIGN.OS')];
+  }) : ['🎮 BIENVENIDO · ' + ((bizName && bizName !== 'undefined') ? bizName.toUpperCase() : 'SIGN.OS')];
 
   if (weatherTemp !== null && tickerCfg.weatherMsg) {
     texts.push(tickerCfg.weatherMsg.replace(/\{temp\}/g, weatherTemp + '°C'));
@@ -1377,12 +1383,22 @@ function dateInRange(today, from, to) {
 // FX CANVAS
 // ════════════════════════════════════════════════════
 const FX_CFGS = {
-  snow:      { emojis:['❄','❅','❆'],       count:60, vy:[0.5,1.5], vx:[-0.3,0.3] },
-  hearts:    { emojis:['💕','❤️','💖'],     count:30, vy:[0.4,1.0], vx:[-0.5,0.5] },
-  skulls:    { emojis:['💀','🎃','👻'],     count:25, vy:[0.5,1.2], vx:[-0.4,0.4] },
-  fireworks: { emojis:['✨','🎆','⭐'],     count:40, vy:[0.5,1.4], vx:[-0.6,0.6] },
-  stars:     { emojis:['⭐','🌟','✨'],     count:50, vy:[0.4,1.0], vx:[-0.4,0.4] },
-  coins:     { emojis:['🪙','💰','💵'],     count:40, vy:[1.5,3.0], vx:[-0.2,0.2] },
+  // Existentes
+  snow:      { emojis:['❄','❅','❆'],           count:60, vy:[0.5,1.5], vx:[-0.3,0.3] },
+  hearts:    { emojis:['💕','❤️','💖'],         count:30, vy:[0.4,1.0], vx:[-0.5,0.5] },
+  skulls:    { emojis:['💀','🎃','👻'],         count:25, vy:[0.5,1.2], vx:[-0.4,0.4] },
+  fireworks: { emojis:['✨','🎆','⭐'],         count:40, vy:[0.5,1.4], vx:[-0.6,0.6] },
+  stars:     { emojis:['⭐','🌟','✨'],         count:50, vy:[0.4,1.0], vx:[-0.4,0.4] },
+  coins:     { emojis:['🪙','💰','💵'],         count:40, vy:[1.5,3.0], vx:[-0.2,0.2] },
+  // Nuevos
+  confetti:  { emojis:['🎊','🎉','🥳','🎈'],   count:70, vy:[1.0,2.5], vx:[-1.0,1.0] },
+  petals:    { emojis:['🌸','🌺','🌹','🌷'],   count:35, vy:[0.3,0.8], vx:[-0.8,0.8] },
+  bubbles:   { emojis:['🫧','⭕','🔵','🟡'],   count:25, vy:[-1.5,-0.5], vx:[-0.3,0.3] }, // suben
+  leaves:    { emojis:['🍂','🍁','🍃','🌿'],   count:30, vy:[0.4,1.2], vx:[-0.6,0.6] },
+  music:     { emojis:['🎵','🎶','🎼','🎸'],   count:25, vy:[0.3,0.9], vx:[-0.5,0.5] },
+  food:      { emojis:['🍕','🍔','🌮','🍟'],   count:20, vy:[1.0,2.0], vx:[-0.3,0.3] },
+  sports:    { emojis:['⚽','🏀','🎾','🏈'],   count:20, vy:[1.2,2.5], vx:[-0.5,0.5] },
+  summer:    { emojis:['☀️','🌊','🏖️','🌴'],  count:25, vy:[0.3,0.8], vx:[-0.4,0.4] },
   none:      null,
 };
 
