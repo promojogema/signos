@@ -1,0 +1,1520 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SIGN.OS — Player TV</title>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+  <style>
+    :root { --accent:#ffcc00; --red:#ff1744; --green:#00e676; }
+    *{margin:0;padding:0;box-sizing:border-box;}
+    body{background:#000;overflow:hidden;font-family:'Arial Black','Arial',sans-serif;color:#fff;cursor:none;user-select:none;}
+
+    /* ── LOGIN ─────────────────────────────────────── */
+    #login-screen{
+      position:fixed;inset:0;background:#000;
+      display:flex;align-items:center;justify-content:center;
+      z-index:500;flex-direction:column;
+    }
+    .ls-brand{font-size:64px;font-weight:900;letter-spacing:-2px;margin-bottom:6px;}
+    .ls-brand em{color:var(--accent);font-style:normal;}
+    .ls-sub{font-size:11px;letter-spacing:.2em;color:#333;font-family:'Courier New',monospace;margin-bottom:48px;}
+    .ls-box{background:#0e0e0e;border:1px solid #1e1e1e;padding:32px 40px;width:min(420px,90vw);}
+    .ls-lbl{font-size:10px;letter-spacing:.15em;color:#444;font-family:'Courier New',monospace;margin-bottom:8px;text-transform:uppercase;}
+    .ls-inp{
+      width:100%;background:#060606;border:1px solid #1a1a1a;color:#fff;
+      font-size:16px;padding:12px 16px;outline:none;margin-bottom:16px;
+      font-family:'Courier New',monospace;letter-spacing:.1em;transition:border-color .2s;
+    }
+    .ls-inp:focus{border-color:var(--accent);}
+    .ls-btn{
+      width:100%;background:var(--accent);color:#000;border:none;
+      font-size:16px;font-weight:900;padding:14px;cursor:pointer;
+      letter-spacing:.05em;transition:opacity .2s;
+    }
+    .ls-btn:hover{opacity:.85;}
+    .ls-err{
+      background:#ff174412;border:1px solid #ff174435;color:var(--red);
+      font-size:11px;padding:10px 14px;margin-top:12px;
+      font-family:'Courier New',monospace;display:none;line-height:1.7;
+    }
+    .ls-err.on{display:block;}
+    .ls-note{font-size:10px;color:#2a2a2a;margin-top:12px;line-height:1.8;font-family:'Courier New',monospace;text-align:center;}
+
+    /* ── STANDBY ───────────────────────────────────── */
+    #standby-screen{
+      display:none;position:fixed;inset:0;z-index:200;background:#000;
+      flex-direction:column;align-items:center;justify-content:center;
+    }
+    .sb-logo{max-width:320px;max-height:180px;object-fit:contain;margin-bottom:32px;}
+    .sb-name{font-size:48px;font-weight:900;color:var(--accent);margin-bottom:12px;letter-spacing:-1px;}
+    .sb-tag{font-size:13px;color:#333;letter-spacing:.15em;font-family:'Courier New',monospace;}
+    .sb-spin{
+      width:40px;height:40px;border:3px solid #111;border-top-color:var(--accent);
+      border-radius:50%;animation:spin .8s linear infinite;margin-top:40px;
+    }
+    @keyframes spin{to{transform:rotate(360deg);}}
+
+    /* ── PLAYER ────────────────────────────────────── */
+    #player{display:none;position:fixed;inset:0;background:#000;}
+    #vid,#img{
+      position:absolute;inset:0;width:100%;height:100%;
+      object-fit:cover;opacity:0;transition:opacity .9s ease-in-out;
+    }
+
+    /* ── URGENTE ───────────────────────────────────── */
+    #urgent-overlay{
+      display:none;position:fixed;inset:0;z-index:900;
+      background:linear-gradient(135deg,#cc0000,#880000);
+      align-items:center;justify-content:center;flex-direction:column;
+      text-align:center;border:20px solid #fff;
+      animation:urgBlink 1.2s ease-in-out infinite alternate;
+    }
+    #urgent-overlay.on{display:flex;}
+    @keyframes urgBlink{from{border-color:#fff;}to{border-color:#ff6b00;}}
+    #urg-icon{font-size:80px;margin-bottom:16px;}
+    #urg-title{font-size:clamp(28px,5.5vw,80px);font-weight:900;color:#fff;text-shadow:3px 3px 0 #000;margin-bottom:20px;padding:0 40px;line-height:1.2;}
+    #urg-timer{font-size:18px;color:rgba(255,255,255,.5);font-family:'Courier New',monospace;}
+
+    /* ── TICKER ────────────────────────────────────── */
+    #ticker{
+      position:fixed;bottom:0;left:0;right:0;height:72px;
+      background:rgba(0,0,0,.92);display:flex;align-items:center;
+      z-index:100;border-top:4px solid var(--accent);
+    }
+    #ticker-logo{
+      background:var(--accent);color:#000;height:100%;
+      display:flex;align-items:center;padding:0 24px;
+      font-weight:900;font-size:22px;text-transform:uppercase;
+      letter-spacing:.05em;white-space:nowrap;flex-shrink:0;
+    }
+    #ticker-wrap{flex:1;overflow:hidden;white-space:nowrap;}
+    #ticker-text{
+      display:inline-block;font-size:28px;font-weight:700;
+      padding-left:100%;white-space:nowrap;
+      animation:tickerScroll 40s linear infinite;
+    }
+    @keyframes tickerScroll{from{transform:translateX(0);}to{transform:translateX(-100%);}}
+    #ticker-clock{
+      padding:0 24px;font-size:32px;font-weight:900;color:var(--accent);
+      border-left:2px solid #1e1e1e;min-width:110px;text-align:center;flex-shrink:0;
+      font-variant-numeric:tabular-nums;
+    }
+
+    /* ── CANVAS FX ─────────────────────────────────── */
+    #fx-canvas{position:fixed;inset:0;z-index:800;pointer-events:none;}
+
+    /* ── STATUS ────────────────────────────────────── */
+    #status-dot{
+      position:fixed;top:12px;right:12px;width:8px;height:8px;
+      border-radius:50%;background:var(--green);z-index:999;
+      box-shadow:0 0 8px var(--green);animation:dotPulse 3s ease-in-out infinite;
+    }
+    @keyframes dotPulse{0%,100%{opacity:1;}50%{opacity:.2;}}
+    #status-dot.off{background:var(--red);box-shadow:0 0 8px var(--red);animation:none;}
+    #room-badge{position:fixed;top:8px;left:12px;font-family:'Courier New',monospace;font-size:10px;color:#222;z-index:999;letter-spacing:.1em;}
+  </style>
+</head>
+<body>
+
+<div id="status-dot"></div>
+<div id="room-badge">SIGN.OS</div>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="ls-brand">SIGN<em>.</em>OS</div>
+  <div class="ls-sub">// PLAYER TV — IDENTIFICACIÓN</div>
+  <div class="ls-box">
+    <div class="ls-lbl">PIN del negocio (4 dígitos)</div>
+    <input class="ls-inp" id="inp-pin" type="tel" maxlength="4" placeholder="0000"
+      onkeydown="if(event.key==='Enter')ge('inp-code').focus()">
+
+    <div class="ls-lbl">Código de sala <span style="color:#333;font-weight:400">(solo la primera vez)</span></div>
+    <input class="ls-inp" id="inp-code" placeholder="— vacío si ya está registrada —"
+      style="text-transform:uppercase;letter-spacing:.2em"
+      onkeydown="if(event.key==='Enter')doConnect()">
+
+    <button class="ls-btn" id="ls-btn" onclick="doConnect()">CONECTAR →</button>
+    <div class="ls-err" id="ls-err"></div>
+    <div class="ls-note">Solicita el PIN al administrador · El código se genera en el Panel → Pantallas</div>
+  </div>
+</div>
+
+<!-- CLICK TO START -->
+<div id="click-start" style="
+  position:fixed;inset:0;z-index:9999;background:#000;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  cursor:pointer;" onclick="unlockAudio()">
+  <!-- Logo / nombre negocio -->
+  <div style="font-family:'Arial Black',sans-serif;font-size:72px;font-weight:900;
+    color:#ffcc00;letter-spacing:-3px;margin-bottom:8px;text-shadow:0 0 40px rgba(255,204,0,.3)">
+    SIGN<span style="color:#fff">.</span>OS
+  </div>
+  <div style="font-family:'Courier New',monospace;font-size:12px;color:#333;
+    letter-spacing:.3em;margin-bottom:60px;text-transform:uppercase">
+    Digital Signage System
+  </div>
+  <!-- Botón animado -->
+  <div style="width:80px;height:80px;border:2px solid #ffcc00;border-radius:50%;
+    display:flex;align-items:center;justify-content:center;
+    animation:pulseBtn 2s ease-in-out infinite;cursor:pointer">
+    <div style="font-size:32px;margin-left:6px">▶</div>
+  </div>
+  <div style="font-family:'Courier New',monospace;font-size:11px;color:#333;
+    margin-top:20px;letter-spacing:.2em">TOCA PARA INICIAR</div>
+  <style>
+    @keyframes pulseBtn {
+      0%,100% { box-shadow:0 0 0 0 rgba(255,204,0,.4); }
+      50%      { box-shadow:0 0 0 20px rgba(255,204,0,0); }
+    }
+  </style>
+</div>
+<div id="standby-screen">
+  <img class="sb-logo" id="sb-logo" src="" style="display:none" alt="">
+  <div class="sb-name" id="sb-name">SIGN.OS</div>
+  <div class="sb-tag" id="sb-tag">CARGANDO CONTENIDO...</div>
+  <div class="sb-spin"></div>
+  <div id="sync-status" style="font-family:'Courier New',monospace;font-size:10px;color:#333;margin-top:16px;letter-spacing:.1em"></div>
+  <div id="storage-info" style="font-family:'Courier New',monospace;font-size:9px;color:#222;margin-top:8px;letter-spacing:.08em"></div>
+</div>
+
+<!-- PLAYER -->
+<div id="player">
+  <video id="vid" playsinline></video>
+  <img   id="img" draggable="false" alt="">
+  <audio id="aud" style="display:none"></audio>
+</div>
+
+<!-- URGENTE -->
+<div id="urgent-overlay">
+  <div id="urg-icon">🚨</div>
+  <div id="urg-title">ATENCIÓN</div>
+  <div id="urg-timer"></div>
+</div>
+
+<!-- TICKER -->
+<div id="ticker">
+  <div id="ticker-logo">SALA</div>
+  <div id="ticker-wrap"><div id="ticker-text">Iniciando...</div></div>
+  <div id="ticker-temp" style="
+  padding:0 24px;font-size:28px;font-weight:900;color:#ffcc00;
+  border-left:2px solid #1e1e1e;min-width:110px;text-align:center;flex-shrink:0;
+  font-family:'Arial Black',sans-serif">
+  --°C
+</div>
+</div>
+
+<!-- FX -->
+<canvas id="fx-canvas"></canvas>
+
+<script>
+'use strict';
+
+// ════════════════════════════════════════════════════
+// FIREBASE CONFIG (mismo proyecto que el panel)
+// ════════════════════════════════════════════════════
+const FB_CFG = {
+  apiKey:            "AIzaSyDMFoBe5i9GEhod2c3Af-mF4Dj3OvVndWg",
+  authDomain:        "tvpromo-57412.firebaseapp.com",
+  databaseURL:       "https://tvpromo-57412-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId:         "tvpromo-57412",
+  storageBucket:     "tvpromo-57412.firebasestorage.app",
+  messagingSenderId: "983812629942",
+  appId:             "1:983812629942:web:4d51522ad816d28c8ecd17"
+};
+
+// ════════════════════════════════════════════════════
+// ESTADO GLOBAL
+// ════════════════════════════════════════════════════
+let DB           = null;
+let sysCode      = '';    // syncCode del propietario
+let screenId     = '';    // ID de esta TV en Firebase
+let screenName   = '';
+let bizName      = '';
+let currentVol   = 80;
+
+let PLAYLIST     = [];    // ítems a reproducir ahora
+let curIdx       = 0;
+let playTimer    = null;
+let isPlaying    = false;
+
+let tickerCfg    = {};
+let weatherTemp  = null;
+let evCfg        = {};
+
+let fxActive = false, fxAnimId = null, fxParticles = [];
+
+const ge = id => document.getElementById(id);
+
+// ════════════════════════════════════════════════════
+// DESBLOQUEO DE AUDIO — obligatorio en todos los navegadores
+// ════════════════════════════════════════════════════
+let _audioUnlocked = false;
+
+function unlockAudio() {
+  if (_audioUnlocked) return;
+  _audioUnlocked = true;
+
+  // Silencio para desbloquear contexto de audio del navegador
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const buf = ctx.createBuffer(1, 1, 22050);
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    src.connect(ctx.destination);
+    src.start(0);
+    ctx.resume();
+  } catch(e) {}
+
+  // Pedir almacenamiento persistente — evita que Android borre la caché automáticamente
+  requestPersistentStorage();
+
+  // Ocultar pantalla de inicio
+  const el = ge('click-start');
+  if (el) {
+    el.style.transition = 'opacity .5s';
+    el.style.opacity = '0';
+    setTimeout(() => { el.style.display = 'none'; }, 500);
+  }
+
+  console.log('[audio] Desbloqueado');
+
+  // Cargar sesión y arrancar
+  const sess = loadSession();
+  if (sess) {
+    sysCode    = sess.sysCode;
+    screenId   = sess.screenId;
+    screenName = sess.screenName || 'TV';
+    bizName    = sess.bizName    || '';
+    currentVol = sess.volume     || 80;
+    updateBadge();
+    showStandby();
+    startPlayer();
+  } else {
+    showLogin();
+  }
+}
+
+async function requestPersistentStorage() {
+  try {
+    if (!navigator.storage || !navigator.storage.persist) return;
+    const already = await navigator.storage.persisted();
+    if (!already) {
+      const granted = await navigator.storage.persist();
+      console.log('[storage]', granted ? 'Persistente ✓' : 'No persistente');
+    }
+    // Mostrar espacio usado
+    if (navigator.storage.estimate) {
+      const est     = await navigator.storage.estimate();
+      const usedMB  = Math.round((est.usage  || 0) / 1024 / 1024);
+      const quotaMB = Math.round((est.quota  || 0) / 1024 / 1024);
+      const el = ge('storage-info');
+      if (el) el.textContent = `CACHÉ: ${usedMB}MB usados de ${quotaMB}MB disponibles`;
+      console.log(`[storage] ${usedMB}MB / ${quotaMB}MB`);
+    }
+  } catch(e) { console.warn('[storage]', e); }
+}
+
+// ════════════════════════════════════════════════════
+// ARRANQUE
+// ════════════════════════════════════════════════════
+window.addEventListener('load', () => {
+  startClock();
+  DB = initFB();
+  // No arrancar hasta que el usuario haga click (desbloqueo de audio)
+  // La pantalla click-start ya está visible y espera interacción
+});
+
+// ════════════════════════════════════════════════════
+// FIREBASE INIT
+// ════════════════════════════════════════════════════
+function initFB() {
+  try {
+    if (firebase.apps.length) return firebase.app().database();
+    firebase.initializeApp(FB_CFG);
+    return firebase.database();
+  } catch(e) { console.error('[Firebase]', e); return null; }
+}
+
+// ════════════════════════════════════════════════════
+// SESIÓN LOCAL
+// ════════════════════════════════════════════════════
+const LS_KEY = 'signos_tv_v2';
+function saveSession(d) { try { localStorage.setItem(LS_KEY, JSON.stringify(d)); } catch(e){} }
+function loadSession()  {
+  try { const r=localStorage.getItem(LS_KEY); if(r){ const d=JSON.parse(r); if(d.sysCode&&d.screenId) return d; } } catch(e){}
+  return null;
+}
+function clearSession() { localStorage.removeItem(LS_KEY); }
+
+// ════════════════════════════════════════════════════
+// NAVEGACIÓN DE PANTALLAS
+// ════════════════════════════════════════════════════
+function showLogin()   { ge('login-screen').style.display='flex'; ge('standby-screen').style.display='none'; ge('player').style.display='none'; setTimeout(()=>ge('inp-pin').focus(),300); }
+function showStandby() {
+  ge('login-screen').style.display='none';
+  ge('standby-screen').style.display='flex';
+  ge('player').style.display='none';
+  // Nunca mostrar "undefined" — usar SIGN.OS como fallback
+  const displayName = (bizName && bizName !== 'undefined') ? bizName : 'SIGN.OS';
+  ge('sb-name').textContent = displayName;
+}
+function showPlayer()  { ge('standby-screen').style.display='none'; ge('player').style.display='block'; }
+function updateBadge() { ge('room-badge').textContent=screenName; ge('ticker-logo').textContent=screenName; }
+
+// ════════════════════════════════════════════════════
+// LOGIN — conectar TV
+// ════════════════════════════════════════════════════
+function loginErr(msg) { const e=ge('ls-err'); e.textContent=msg; e.classList.add('on'); setTimeout(()=>e.classList.remove('on'),6000); }
+
+async function doConnect() {
+  const pin  = ge('inp-pin').value.trim();
+  const code = ge('inp-code').value.trim().toUpperCase();
+
+  if (!pin || pin.length < 4) { loginErr('Introduce el PIN de 4 dígitos'); return; }
+
+  const btn = ge('ls-btn');
+  btn.textContent = 'Conectando...'; btn.disabled = true;
+
+  try {
+    DB = initFB();
+    if (!DB) throw new Error('No se pudo inicializar Firebase');
+
+    // Buscar cuenta por PIN
+    const accSnap = await DB.ref('accounts').once('value');
+    if (!accSnap.exists()) throw new Error('No hay cuentas en el sistema');
+
+    let match = null;
+    accSnap.forEach(c => {
+      const a = c.val();
+      if (String(a.tvPin) === String(pin)) match = { key: c.key, ...a };
+    });
+    if (!match) throw new Error('PIN incorrecto — consulta al administrador');
+
+    const sc = match.code;
+    if (!sc) throw new Error('Error de configuración — contacta al administrador');
+
+    let sid = '', sName = '', biz = '';
+
+    if (code) {
+      // Primera conexión: validar código de sala
+      const pendSnap = await DB.ref(`sys/${sc}/pending_screens/${code}`).once('value');
+      if (!pendSnap.exists()) throw new Error('Código de sala incorrecto o ya utilizado');
+
+      const pend = pendSnap.val();
+      if (pend.used) throw new Error('Este código ya fue usado. Genera uno nuevo desde Panel → Pantallas.');
+
+      sName = pend.name || 'Pantalla';
+      sid   = 'sc_' + Date.now() + '_' + Math.random().toString(36).slice(2,5);
+
+      // Registrar TV en Firebase
+      await DB.ref(`sys/${sc}/screens/${sid}`).set({
+        name: sName, registeredAt: Date.now(), lastSeen: Date.now(), volume: 80
+      });
+      // Marcar código usado
+      await DB.ref(`sys/${sc}/pending_screens/${code}`).update({ used: true, usedAt: Date.now(), usedBy: sid });
+
+    } else {
+      // Sin código — buscar si ya hay una TV guardada con este sysCode
+      // (no debería llegar aquí sin sesión; pedimos código)
+      throw new Error('Introduce el código de sala para esta TV. Lo ves en Panel → Pantallas.');
+    }
+
+    // Nombre del negocio
+    const metaSnap = await DB.ref(`sys/${sc}/meta`).once('value');
+    biz = metaSnap.exists() ? (metaSnap.val().name || '') : '';
+
+    // Guardar sesión
+    const sess = { sysCode: sc, screenId: sid, screenName: sName, bizName: biz, tvPin: pin, volume: 80 };
+    saveSession(sess);
+
+    sysCode = sc; screenId = sid; screenName = sName; bizName = biz;
+    updateBadge();
+    showStandby();
+    startPlayer();
+
+  } catch(e) {
+    console.error('[doConnect]', e);
+    loginErr(e.message || 'Error desconocido');
+    btn.textContent = 'CONECTAR →'; btn.disabled = false;
+  }
+}
+
+// ════════════════════════════════════════════════════
+// INICIO DEL PLAYER
+// ════════════════════════════════════════════════════
+function startPlayer() {
+  if (!DB || !sysCode) return;
+  loadCfg();
+  listenFiles();
+  listenTicker();
+  listenUrgent();
+  listenCommands();
+  listenEvents();
+  listenSponsors();
+  setInterval(heartbeat, 30000); heartbeat();
+  setInterval(()=>{ listenFiles(); }, 5 * 60000); // recheck cada 5 min
+  setTimeout(fetchWeather, 4000);
+  setInterval(fetchWeather, 30 * 60000);
+}
+
+// ════════════════════════════════════════════════════
+// CONFIG
+// ════════════════════════════════════════════════════
+async function loadCfg() {
+  try {
+    const m = await DB.ref(`sys/${sysCode}/meta`).once('value');
+    if (m.exists() && m.val().name) { bizName = m.val().name; ge('sb-name').textContent = bizName; }
+  } catch(e){}
+}
+
+// ════════════════════════════════════════════════════
+// PLAYLIST — día y franja
+// ════════════════════════════════════════════════════
+const DAYS_ES    = ['domingo','lunes','martes','miercoles','jueves','viernes','sabado'];
+const FRANJAS_ID = ['manana','mediodia','tarde','noche'];
+
+function getNowDayFranja() {
+  const now = new Date(), h = now.getHours();
+  const day = DAYS_ES[now.getDay()];
+  const fr  = h<14 ? (h<9?'noche':'manana') : h<17 ? 'mediodia' : h<22 ? 'tarde' : 'noche';
+  return { day, fr };
+}
+
+// ════════════════════════════════════════════════════
+// CACHÉ OFFLINE — IndexedDB
+// Guarda archivos COMÚN como blobs locales
+// Sincroniza solo lo que cambió al volver internet
+// ════════════════════════════════════════════════════
+const IDB_NAME    = 'signos_cache';
+const IDB_VERSION = 1;
+const IDB_FILES   = 'files';
+const IDB_META    = 'meta';
+let _idb = null;
+
+function openIDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(IDB_NAME, IDB_VERSION);
+    req.onupgradeneeded = e => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains(IDB_FILES)) {
+        db.createObjectStore(IDB_FILES, { keyPath: 'id' });
+      }
+      if (!db.objectStoreNames.contains(IDB_META)) {
+        db.createObjectStore(IDB_META, { keyPath: 'key' });
+      }
+    };
+    req.onsuccess = e => { _idb = e.target.result; resolve(_idb); };
+    req.onerror   = () => reject(req.error);
+  });
+}
+
+async function idbGet(store, key) {
+  return new Promise((resolve) => {
+    const tx  = _idb.transaction(store, 'readonly');
+    const req = tx.objectStore(store).get(key);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror   = () => resolve(null);
+  });
+}
+
+async function idbPut(store, value) {
+  return new Promise((resolve) => {
+    const tx  = _idb.transaction(store, 'readwrite');
+    const req = tx.objectStore(store).put(value);
+    req.onsuccess = () => resolve(true);
+    req.onerror   = () => resolve(false);
+  });
+}
+
+async function idbGetAll(store) {
+  return new Promise((resolve) => {
+    const tx   = _idb.transaction(store, 'readonly');
+    const req  = tx.objectStore(store).getAll();
+    req.onsuccess = () => resolve(req.result || []);
+    req.onerror   = () => resolve([]);
+  });
+}
+
+// Descargar un archivo de Cloudinary y guardarlo como blob
+async function cacheFile(file) {
+  try {
+    const cached = await idbGet(IDB_FILES, file.id);
+    // Si ya está cacheado y no cambió, usar el local
+    if (cached && cached.updatedAt >= (file.uploaded || 0)) {
+      return cached.blobUrl || file.url;
+    }
+    // Descargar
+    console.log('[cache] Descargando:', file.name);
+    const resp = await fetch(file.url);
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const blob = await resp.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    // Guardar en IndexedDB
+    // Guardar el blob Y la originalUrl para offline real
+    // pero al reproducir siempre usar originalUrl
+    await idbPut(IDB_FILES, {
+      id: file.id,
+      name: file.name,
+      type: file.type,
+      blob,
+      originalUrl: file._originalUrl || file.url,
+      updatedAt: file.uploaded || Date.now()
+    });
+    console.log('[cache] ✓ Guardado:', file.name);
+    return blobUrl;
+  } catch(e) {
+    console.warn('[cache] Error descargando', file.name, e.message);
+    return file.url; // fallback a URL remota
+  }
+}
+
+// Cargar caché offline y construir _filesMap desde IndexedDB
+async function loadFromCache() {
+  try {
+    await openIDB();
+    const cached = await idbGetAll(IDB_FILES);
+    if (!cached.length) {
+      console.warn('[offline] Caché vacía — sin contenido para reproducir');
+      return false;
+    }
+
+    const metaRaw = await idbGet(IDB_META, 'filesmap');
+    if (metaRaw && metaRaw.data) {
+      _allFilesMap = metaRaw.data;
+    }
+
+    // Usar siempre originalUrl (Cloudinary) — los blobs expiran al cerrar el navegador
+    for (const c of cached) {
+      if (_allFilesMap[c.id] && c.originalUrl) {
+        _allFilesMap[c.id].url          = c.originalUrl;
+        _allFilesMap[c.id]._originalUrl = c.originalUrl;
+      }
+    }
+
+    const assignMeta = await idbGet(IDB_META, 'assignments');
+    if (assignMeta) _assignments = assignMeta.data || {};
+
+    const plMeta = await idbGet(IDB_META, 'playlists');
+    if (plMeta) _playlists = plMeta.data || null;
+
+    _filesLoaded  = true;
+    _assignLoaded = true;
+    _plLoaded     = true;
+
+    applyAssignments();
+    console.log(`[offline] ✓ ${cached.length} archivos desde caché local`);
+
+    const el = ge('sync-status');
+    if (el) {
+      el.textContent = '📴 Modo offline — reproduciendo caché local';
+      el.style.color = '#ffcc00';
+    }
+    return true;
+  } catch(e) {
+    console.warn('[offline] Sin caché disponible:', e);
+    return false;
+  }
+}
+
+// Guardar metadatos en caché tras cargar desde Firebase
+async function saveToCache() {
+  if (!_idb) return;
+  try {
+    await idbPut(IDB_META, { key: 'filesmap',   data: _allFilesMap });
+    await idbPut(IDB_META, { key: 'assignments', data: _assignments });
+    await idbPut(IDB_META, { key: 'playlists',   data: _playlists });
+    console.log('[cache] Metadatos guardados ✓');
+  } catch(e) { console.warn('[cache] Error guardando metadatos:', e); }
+}
+
+// Descargar en background los archivos COMÚN que no están en caché
+async function syncCommonFiles() {
+  if (!_idb) return;
+  const commonIds = new Set(_assignments['common'] || []);
+  const toSync = Object.values(_allFilesMap).filter(f => commonIds.has(f.id));
+  if (!toSync.length) return;
+
+  const setSyncMsg = msg => {
+    const el = ge('sync-status');
+    if (el) el.textContent = msg;
+  };
+
+  console.log(`[sync] Sincronizando ${toSync.length} archivos COMÚN...`);
+  let synced = 0;
+  for (const file of toSync) {
+    setSyncMsg(`Descargando ${synced + 1}/${toSync.length}: ${file.name}`);
+    const blobUrl = await cacheFile(file);
+    if (_filesMap[file.id]) _filesMap[file.id].url = blobUrl;
+    if (_allFilesMap[file.id]) _allFilesMap[file.id]._blobUrl = blobUrl;
+    synced++;
+  }
+
+  setSyncMsg('');
+  console.log(`[sync] ✓ ${synced} archivos sincronizados`);
+  await saveToCache();
+  buildPlaylist();
+}
+
+// Limpiar entradas de caché con blobs expirados (blob:null)
+async function cleanExpiredCache() {
+  if (!_idb) return;
+  try {
+    const cached = await idbGetAll(IDB_FILES);
+    let cleaned = 0;
+    for (const c of cached) {
+      if (c.blobUrl && c.blobUrl.startsWith('blob:null')) {
+        await new Promise(r => {
+          const tx = _idb.transaction(IDB_FILES, 'readwrite');
+          tx.objectStore(IDB_FILES).delete(c.id);
+          tx.oncomplete = r; tx.onerror = r;
+        });
+        cleaned++;
+      }
+    }
+    if (cleaned > 0) console.log('[cache] ' + cleaned + ' entradas expiradas limpiadas');
+  } catch(e) { console.warn('[cache clean]', e); }
+}
+
+let _filesMap     = {};   // archivos filtrados para esta sala
+let _allFilesMap  = {};   // todos los archivos (antes de filtrar)
+let _assignments  = {};   // { common:[ids], sala_01:[ids] }
+let _playlists    = null;
+let _filesLoaded  = false;
+let _assignLoaded = false;
+let _plLoaded     = false;
+let _listeners    = false;
+
+function listenFiles() {
+  if (_listeners) return;
+  _listeners = true;
+
+  // Limpiar caché corrupta (blob:null) sin bloquear
+  openIDB().then(() => cleanExpiredCache()).catch(() => {});
+
+  // SIEMPRE cargar desde Firebase con URLs directas de Cloudinary
+  // La caché descarga en background pero la reproducción usa URLs directas
+  DB.ref(`sys/${sysCode}/files`).on('value', snap => {
+    const allFiles = {};
+    if (snap.exists()) snap.forEach(c => {
+      const f = { id: c.key, ...c.val() };
+      // Asegurar que la URL sea siempre la de Cloudinary, nunca un blob
+      if (f.url && f.url.startsWith('blob:')) f.url = null;
+      f._originalUrl = f.url; // guardar referencia permanente
+      allFiles[c.key] = f;
+      return false;
+    });
+    _allFilesMap = allFiles;
+    _filesLoaded = true;
+    if (_assignLoaded) applyAssignments();
+  });
+
+  DB.ref(`sys/${sysCode}/assignments`).on('value', snap => {
+    _assignments = snap.val() || {};
+    _assignLoaded = true;
+    if (_filesLoaded) applyAssignments();
+  });
+
+  DB.ref(`sys/${sysCode}/playlists`).on('value', snap => {
+    _playlists = snap.val() || null;
+    _plLoaded  = true;
+    if (_filesLoaded && _assignLoaded) buildPlaylist();
+  });
+
+  // Descargar archivos en caché en background (5s después para no bloquear arranque)
+  if (navigator.onLine) {
+    setTimeout(() => {
+      if (_filesLoaded && _assignLoaded) syncCommonFiles();
+    }, 5000);
+  }
+}
+
+// Al volver internet — sincronizar cambios
+window.addEventListener('online', () => {
+  console.log('[online] Conexión restaurada — sincronizando...');
+  ge('status-dot').classList.remove('off');
+  if (DB && sysCode) {
+    // Re-escuchar Firebase para obtener cambios mientras estaba offline
+    DB.ref(`sys/${sysCode}/files`).once('value').then(snap => {
+      if (!snap.exists()) return;
+      const allFiles = {};
+      snap.forEach(c => { allFiles[c.key] = { id: c.key, ...c.val() }; return false; });
+      // Detectar archivos nuevos o modificados
+      let changed = 0;
+      Object.values(allFiles).forEach(f => {
+        const cached = _allFilesMap[f.id];
+        if (!cached || (f.uploaded||0) > (cached.uploaded||0)) changed++;
+      });
+      if (changed > 0) {
+        console.log(`[online] ${changed} archivos nuevos/modificados — actualizando`);
+        _allFilesMap = allFiles;
+        syncCommonFiles();
+      }
+    });
+  }
+});
+
+window.addEventListener('offline', () => {
+  ge('status-dot').classList.add('off');
+  console.log('[offline] Sin internet — usando caché local');
+});
+
+// Construir _filesMap con solo los archivos asignados a esta sala
+function applyAssignments() {
+  const myRoom = screenName.toLowerCase().replace(/\s+/g,'_');
+  // IDs asignados a COMÚN + IDs asignados a nuestra sala
+  const commonIds = new Set(_assignments['common'] || []);
+  const roomIds   = new Set(_assignments[screenId] || _assignments[myRoom] || []);
+  const myIds     = new Set([...commonIds, ...roomIds]);
+
+  _filesMap = {};
+  myIds.forEach(id => {
+    if (_allFilesMap[id]) {
+      const f = { ..._allFilesMap[id] };
+      // Usar siempre URL directa de Cloudinary/Firebase
+      // Nunca usar blobUrls que expiran al cerrar el navegador
+      if (f._originalUrl) f.url = f._originalUrl;
+      if (!f.url || f.url.startsWith('blob:')) {
+        console.warn('[assign] URL no disponible para:', f.name);
+        return; // no incluir archivos sin URL válida
+      }
+      _filesMap[id] = f;
+    }
+  });
+
+  console.log(`[assignments] común:${commonIds.size} sala:${roomIds.size} total:${Object.keys(_filesMap).length}`);
+  if (_plLoaded) buildPlaylist();
+}
+
+function buildPlaylist() {
+  const { day, fr } = getNowDayFranja();
+  const allFiles = Object.values(_filesMap).filter(f => f.url);
+
+  // Separar por rol y tipo
+  const baseVideos = allFiles.filter(f => (f.role==='base'||!f.role) && detectType(f)==='video');
+  const basePhotos = allFiles.filter(f => (f.role==='base'||!f.role) && detectType(f)==='image');
+  const baseMusic  = allFiles.filter(f => (f.role==='base'||!f.role) && detectType(f)==='audio');
+
+  // Playlist del día/franja configurada en Horarios
+  let plItems = [];
+  if (_playlists?.[day]?.[fr]?.length) {
+    _playlists[day][fr].forEach(item => {
+      const f = _filesMap[item.id];
+      if (!f || !f.url) return;
+      const freq = item.freq || f.freq || 1;
+      for (let i = 0; i < freq; i++) plItems.push({ ...f, _pl: true });
+    });
+  }
+
+  // Construir secuencia visual BASE (solo vídeos y fotos)
+  // La música va en un motor separado — no se mezcla en la playlist visual
+  let baseItems = [];
+
+  // Vídeos base con su sonido
+  baseVideos
+    .sort((a,b) => (a.order||a.uploaded||0)-(b.order||b.uploaded||0))
+    .forEach(f => { for (let i=0; i<(f.freq||1); i++) baseItems.push({...f, _type:'video'}); });
+
+  // Fotos base — el motor de música suena de fondo automáticamente
+  if (basePhotos.length) {
+    basePhotos
+      .sort((a,b) => (a.order||a.uploaded||0)-(b.order||b.uploaded||0))
+      .forEach(f => baseItems.push({...f, _type:'image'}));
+  }
+
+  // Fallback si no hay nada
+  if (!baseItems.length) {
+    baseItems = allFiles
+      .filter(f => detectType(f) !== 'audio') // no poner música en la lista visual
+      .sort((a,b) => (a.order||0)-(b.order||0))
+      .map(f => ({...f}));
+  }
+
+  // Arrancar motor de música SOLO si hay fotos base para mostrar
+  // Si solo hay vídeos, la música no debe sonar (los vídeos tienen su propio audio)
+  if (baseMusic.length && basePhotos.length) {
+    initMusicPlayer(baseMusic.sort((a,b) => (a.order||a.uploaded||0)-(b.order||b.uploaded||0)));
+  } else {
+    stopAllMusic();
+  }
+
+  // Intercalar playlist cada 2 ítems base (con más frecuencia que el base)
+  let items = [];
+  if (plItems.length) {
+    let pi = 0;
+    baseItems.forEach((b, bi) => {
+      items.push(b);
+      if ((bi + 1) % 2 === 0) {
+        items.push({ ...plItems[pi % plItems.length] });
+        pi++;
+      }
+    });
+  } else {
+    items = baseItems;
+  }
+
+  console.log(`[playlist] ${day}/${fr} — vídeos:${baseVideos.length} fotos:${basePhotos.length} música:${baseMusic.length} playlist:${plItems.length} total:${items.length}`);
+
+  if (!items.length) { PLAYLIST=[]; isPlaying=false; showStandby(); return; }
+
+  const oldIds = PLAYLIST.map(x=>x.id).join(',');
+  PLAYLIST = items;
+
+  if (!isPlaying) {
+    curIdx=0; isPlaying=true; showPlayer(); playItem(0);
+  } else if (oldIds !== items.map(x=>x.id).join(',')) {
+    curIdx = Math.min(curIdx, PLAYLIST.length-1);
+    console.log('[playlist] Actualizada en caliente');
+  }
+}
+
+// ════════════════════════════════════════════════════
+// MOTOR DE REPRODUCCIÓN
+// ════════════════════════════════════════════════════
+
+// Limpia completamente el elemento video — evita que eventos
+// de una reproducción anterior se disparen en la siguiente
+function resetVid() {
+  const v = ge('vid');
+  v.oncanplay        = null;
+  v.onloadedmetadata = null;
+  v.onended          = null;
+  v.onerror          = null;
+  v.style.opacity    = 0;
+  try { v.pause(); } catch(e) {}
+  v.removeAttribute('src');
+  try { v.load(); } catch(e) {}  // libera el recurso de red
+}
+
+function resetImg() {
+  const i = ge('img');
+  i.onload        = null;
+  i.onerror       = null;
+  i.style.opacity = 0;
+  i.removeAttribute('src');
+}
+
+// Detecta el tipo de un ítem: primero por item.type, luego por extensión de URL
+function detectType(item) {
+  const t = (item.type || '').toLowerCase();
+  if (t.startsWith('video/')) return 'video';
+  if (t.startsWith('image/')) return 'image';
+  if (t.startsWith('audio/')) return 'audio';
+  // Inferir por extensión (útil cuando el panel no guarda el MIME)
+  const ext = (item.url || '').toLowerCase().split('?')[0].split('.').pop();
+  if (['mp4','webm','ogg','mov','avi','mkv'].includes(ext)) return 'video';
+  if (['jpg','jpeg','png','gif','webp','bmp','svg','avif'].includes(ext)) return 'image';
+  if (['mp3','aac','wav','flac','m4a','opus'].includes(ext)) return 'audio';
+  return 'unknown';
+}
+
+// ════════════════════════════════════════════════════
+// MOTOR DE MÚSICA — completamente independiente del motor visual
+// Solo gestiona un <audio> dedicado, sin interferir con fotos/vídeos
+// ════════════════════════════════════════════════════
+const MUSIC_EL = new Audio();   // elemento único para música de fondo
+MUSIC_EL.loop  = false;
+
+let _musicQueue  = [];    // lista de canciones en orden
+let _videoPlaying = false; // true = hay vídeo sonando, música en pausa
+let _musicIdx    = 0;     // canción actual
+let _musicActive = false; // true = motor de música arrancado
+
+function initMusicPlayer(songs) {
+  if (!songs || !songs.length) { stopAllMusic(); return; }
+  // Solo reiniciar si la lista de canciones cambió
+  const newSig = songs.map(s=>s.id).join(',');
+  const oldSig = _musicQueue.map(s=>s.id).join(',');
+  if (newSig === oldSig && _musicActive) return; // ya está sonando la misma lista
+
+  _musicQueue  = songs;
+  _musicIdx    = 0;
+  _musicActive = true;
+  playMusicTrack(0);
+}
+
+function playMusicTrack(idx) {
+  if (!_musicQueue.length || !_musicActive) return;
+  _musicIdx = idx % _musicQueue.length;
+  const song = _musicQueue[_musicIdx];
+  if (!song || !song.url) { playMusicTrack(_musicIdx + 1); return; }
+
+  MUSIC_EL.src    = song.url;
+  MUSIC_EL.volume = currentVol / 100;
+
+  // Al terminar la canción, pasar a la siguiente automáticamente
+  MUSIC_EL.onended = () => {
+    if (!_videoPlaying) playMusicTrack(_musicIdx + 1);
+    else { /* vídeo sonando — esperar a que termine */ }
+  };
+  MUSIC_EL.onerror = () => {
+    console.warn('[music] Error en', song.name, '— siguiente');
+    if (!_videoPlaying) playMusicTrack(_musicIdx + 1);
+  };
+
+  if (_videoPlaying) {
+    console.log('[music] Vídeo en curso — música en espera');
+    return; // no reproducir mientras hay vídeo
+  }
+
+  MUSIC_EL.play().catch(() => {
+    setTimeout(() => { if (_musicActive && !_videoPlaying) MUSIC_EL.play().catch(()=>{}); }, 2000);
+  });
+
+  console.log('[music] ♪', song.name, '(' + (_musicIdx+1) + '/' + _musicQueue.length + ')');
+}
+
+function stopAllMusic() {
+  _musicActive = false;
+  try { MUSIC_EL.pause(); } catch(e) {}
+  MUSIC_EL.src = '';
+  _musicQueue  = [];
+}
+
+function setMusicVolume(vol) {
+  MUSIC_EL.volume = vol / 100;
+}
+
+function playItem(idx) {
+  if (!PLAYLIST.length) { isPlaying = false; showStandby(); return; }
+
+  curIdx = ((idx % PLAYLIST.length) + PLAYLIST.length) % PLAYLIST.length;
+  const item = PLAYLIST[curIdx];
+
+  clearTimeout(playTimer);
+  resetVid();
+  resetImg();
+  lastActivity = Date.now();
+
+  // Validar URL — rechazar vacías, undefined, y blob:null (blobs de sesión anterior)
+  const urlOk = item?.url &&
+    item.url !== 'undefined' &&
+    !item.url.startsWith('blob:null') &&
+    (item.url.startsWith('http') || item.url.startsWith('blob:'));
+  if (!urlOk) {
+    // Intentar usar la URL original de Cloudinary si el blob expiró
+    if (item?._originalUrl) {
+      console.log('[player] Blob expirado, usando URL original:', item.name);
+      item.url = item._originalUrl;
+    } else {
+      console.warn('[player] URL no válida, saltando:', item?.name, item?.url);
+      playTimer = setTimeout(nextItem, 300);
+      return;
+    }
+  }
+
+  const kind = detectType(item);
+  console.log(`[player] ${curIdx+1}/${PLAYLIST.length} — ${kind} — ${item.name||item.url.slice(-35)}`);
+
+  // Watchdog
+  playTimer = setTimeout(() => { console.warn('[watchdog]', item.name); nextItem(); }, 45000);
+
+  const vid = ge('vid');
+  const img = ge('img');
+  const aud = ge('aud');
+
+  if (kind === 'video') {
+    // Vídeo: pausar música y activar flag para que no se reinicie
+    _videoPlaying = true;
+    try { MUSIC_EL.pause(); } catch(e) {}
+    aud.pause();    vid.volume = currentVol / 100;
+    vid.muted  = false;
+    vid.src    = item.url;
+
+    vid.oncanplay = () => {
+      vid.style.opacity = 1;
+      vid.play().catch(() => { vid.muted = true; vid.play(); });
+    };
+    vid.onloadedmetadata = () => {
+      clearTimeout(playTimer);
+      playTimer = setTimeout(nextItem, Math.max(1000, (vid.duration + 2) * 1000));
+    };
+    vid.onended = () => {
+      _videoPlaying = false;
+      // Reanudar música solo si sigue activa
+      if (_musicActive && MUSIC_EL.paused && MUSIC_EL.src) {
+        MUSIC_EL.play().catch(()=>{});
+      }
+      nextItem();
+    };
+    vid.onerror = () => { console.error('[vid] Error:', item.url); nextItem(); };
+
+  } else if (kind === 'image') {
+    // Foto — si venía de vídeo, desactivar flag y reanudar música
+    if (_videoPlaying) {
+      _videoPlaying = false;
+      if (_musicActive && MUSIC_EL.paused && MUSIC_EL.src) {
+        MUSIC_EL.play().catch(() => {});
+      }
+    }
+    vid.style.opacity = 0; vid.pause(); vid.removeAttribute('src');
+    aud.pause();
+
+    const tmp = new Image();
+    tmp.onload = () => {
+      img.src = item.url;
+      img.style.opacity = 1;
+      clearTimeout(playTimer);
+      playTimer = setTimeout(nextItem, (item.duration || 8) * 1000);
+    };
+    tmp.onerror = () => { nextItem(); };
+    tmp.src = item.url;
+
+  } else if (kind === 'audio') {
+    // Audio en la lista visual — simplemente saltar (la música ya suena en MUSIC_EL)
+    nextItem();
+    return;
+
+  } else {
+    nextItem();
+  }
+}
+
+function nextItem() {
+  clearTimeout(playTimer);
+  resetVid();
+  resetImg();
+  lastActivity = Date.now();
+  curIdx = (curIdx + 1) % Math.max(1, PLAYLIST.length);
+  // Solo parar música si el siguiente bloque tiene su propia canción
+  const next = PLAYLIST[curIdx];
+  if (next && next._bgMusic) stopAllMusic();
+  playItem(curIdx);
+}
+
+// ════════════════════════════════════════════════════
+// SPONSORS — ticker alternado
+// ════════════════════════════════════════════════════
+let _sponsors      = [];
+let _sponsorMode   = false; // true = mostrando sponsor ahora
+let _sponsorTimer  = null;
+const TICKER_DURATION  = 20000; // 20s ticker normal
+const SPONSOR_DURATION = 15000; // 15s por sponsor
+
+function listenSponsors() {
+  DB.ref(`sys/${sysCode}/sponsors`).on('value', snap => {
+    _sponsors = [];
+    if (snap.exists()) snap.forEach(c => { _sponsors.push({id:c.key,...c.val()}); return false; });
+    // Reiniciar ciclo con nueva lista
+    clearTimeout(_sponsorTimer);
+    startTickerCycle();
+  });
+}
+
+// Devuelve sponsors activos para el día/franja actual
+function getActiveSponsors() {
+  const now    = new Date();
+  const h      = now.getHours();
+  const day    = DAYS_ES[now.getDay()];
+  const franja = h<9?'noche':h<14?'manana':h<17?'mediodia':h<22?'tarde':'noche';
+
+  return _sponsors.filter(sp => {
+    if (sp.active === false) return false;
+    const okDay    = !sp.days    || !sp.days.length    || sp.days.includes(day);
+    const okFranja = !sp.franjas || !sp.franjas.length || sp.franjas.includes(franja);
+    return okDay && okFranja;
+  });
+}
+
+let _sponsorIdx = 0;
+
+function startTickerCycle() {
+  clearTimeout(_sponsorTimer);
+  const active = getActiveSponsors();
+
+  if (!active.length) {
+    // Sin sponsors — mostrar ticker normal siempre
+    showNormalTicker();
+    return;
+  }
+
+  // Ciclo: ticker normal → sponsor → ticker normal → siguiente sponsor...
+  function cycle() {
+    const sponsors = getActiveSponsors();
+    if (!sponsors.length) { showNormalTicker(); return; }
+
+    // Mostrar ticker normal
+    showNormalTicker();
+    _sponsorTimer = setTimeout(() => {
+      // Mostrar sponsor
+      const sp = sponsors[_sponsorIdx % sponsors.length];
+      _sponsorIdx++;
+      showSponsorTicker(sp);
+      _sponsorTimer = setTimeout(cycle, SPONSOR_DURATION);
+    }, TICKER_DURATION);
+  }
+
+  cycle();
+}
+
+function showNormalTicker() {
+  const el = ge('ticker-logo');
+  el.textContent  = screenName;
+  el.style.background = 'var(--accent)';
+  el.style.color      = '#000';
+  renderTicker(); // restaura el texto normal
+}
+
+function showSponsorTicker(sp) {
+  const el  = ge('ticker-logo');
+  const txt = ge('ticker-text');
+  const col = sp.color || '#ffcc00';
+
+  // Badge del sponsor
+  el.textContent      = '💼 SPONSOR';
+  el.style.background = '#1a1a1a';
+  el.style.color      = col;
+  el.style.border     = '2px solid ' + col;
+
+  // Mensaje
+  txt.textContent = sp.msg || '';
+  txt.style.color = col;
+
+  // Velocidad según longitud
+  const speed = Math.max(12, (sp.msg||'').length * 0.3);
+  txt.style.animation = 'none';
+  void txt.offsetHeight;
+  txt.style.animation = `tickerScroll ${speed}s linear infinite`;
+}
+
+// ════════════════════════════════════════════════════
+// TICKER
+// ════════════════════════════════════════════════════
+function listenTicker() {
+  DB.ref(`sys/${sysCode}/ticker`).on('value', snap => {
+    tickerCfg = snap.val() || {};
+    renderTicker();
+  });
+}
+
+function renderTicker() {
+  // Restaurar estilo normal del ticker
+  const txt = ge('ticker-text');
+  txt.style.color  = '#ffffff';
+  const logo = ge('ticker-logo');
+  if (logo) {
+    logo.style.background = 'var(--accent)';
+    logo.style.color      = '#000';
+    logo.style.border     = 'none';
+  }
+
+  const today = DAYS_ES[new Date().getDay()];
+  const msgs  = (tickerCfg[today] || []).filter(m => m && m.text);
+
+  let texts = msgs.length ? msgs.map(m => {
+    let t = m.text || '';
+    if (weatherTemp !== null) t = t.replace(/\{temp\}/g, weatherTemp + '°C');
+    return t;
+  }) : ['Bienvenido · ' + ((bizName && bizName !== 'undefined') ? bizName : 'SIGN.OS')];
+
+  if (weatherTemp !== null && tickerCfg.weatherMsg) {
+    texts.push(tickerCfg.weatherMsg.replace(/\{temp\}/g, weatherTemp + '°C'));
+  }
+
+  const full = texts.join('   ·   ');
+  const el   = ge('ticker-text');
+  el.textContent = full;
+
+  // Reajustar velocidad según longitud
+  el.style.animation = 'none';
+  void el.offsetHeight;
+  const speed = Math.max(18, full.length * 0.35);
+  el.style.animation = `tickerScroll ${speed}s linear infinite`;
+}
+
+// ════════════════════════════════════════════════════
+// URGENTE
+// ════════════════════════════════════════════════════
+function listenUrgent() {
+  DB.ref(`sys/${sysCode}/urgent`).on('value', snap => {
+    if (!snap.exists() || !snap.val() || !snap.val().msg) {
+      hideUrgent(); return;
+    }
+    const u = snap.val();
+    if (u.expires && Date.now() > u.expires) {
+      DB.ref(`sys/${sysCode}/urgent`).remove(); return;
+    }
+    showUrgent(u);
+  });
+}
+
+function showUrgent(u) {
+  ge('urg-title').textContent = u.msg || 'ATENCIÓN';
+  ge('urgent-overlay').classList.add('on');
+  ge('vid').pause(); ge('aud').pause(); clearTimeout(playTimer);
+
+  clearInterval(window._urgI);
+  if (u.expires) {
+    window._urgI = setInterval(() => {
+      const left = Math.max(0, Math.round((u.expires - Date.now()) / 1000));
+      ge('urg-timer').textContent = left > 0 ? `Finaliza en ${left}s` : '';
+      if (left === 0) { DB.ref(`sys/${sysCode}/urgent`).remove(); clearInterval(window._urgI); }
+    }, 1000);
+  }
+}
+
+function hideUrgent() {
+  clearInterval(window._urgI);
+  ge('urgent-overlay').classList.remove('on');
+  ge('urg-timer').textContent = '';
+  if (isPlaying && PLAYLIST.length) playItem(curIdx);
+}
+
+// ════════════════════════════════════════════════════
+// COMANDOS REMOTOS
+// ════════════════════════════════════════════════════
+function listenCommands() {
+  // Comando por pantalla
+  DB.ref(`sys/${sysCode}/commands/${screenId}`).on('value', snap => {
+    if (!snap.exists()) return;
+    const cmd = snap.val(); if (!cmd) return;
+    handleCmd(cmd);
+    DB.ref(`sys/${sysCode}/commands/${screenId}`).remove();
+  });
+  // Comando global (el panel escribe aquí para llegar a TODAS las TVs)
+  DB.ref(`sys/${sysCode}/command`).on('value', snap => {
+    if (!snap.exists()) return;
+    const cmd = snap.val(); if (!cmd || !cmd.action) return;
+    console.log('[cmd-global]', cmd.action);
+    handleCmd(cmd);
+  });
+}
+
+function handleCmd(cmd) {
+  console.log('[cmd]', cmd.action);
+  if (cmd.action === 'reload') {
+    setTimeout(() => location.reload(), 1500);
+  }
+  if (cmd.action === 'refresh') {
+    // El panel subió contenido nuevo — forzar re-lectura de archivos
+    // (el listener .on('value') ya debería dispararse solo, pero lo forzamos por si acaso)
+    _filesLoaded = false;
+    _plLoaded    = false;
+    _listeners   = false;
+    listenFiles();
+  }
+  if (cmd.action === 'pause') {
+    ge('vid').pause(); ge('aud').pause(); clearTimeout(playTimer);
+  }
+  if (cmd.action === 'resume') {
+    if (PLAYLIST.length) playItem(curIdx);
+  }
+  if (cmd.action === 'volume') {
+    currentVol = Math.max(0, Math.min(100, cmd.value || 80));
+    ge('vid').volume   = currentVol / 100;
+    ge('aud').volume   = currentVol / 100;
+    MUSIC_EL.volume    = currentVol / 100;
+  }
+}
+
+// ════════════════════════════════════════════════════
+// EVENTOS ESPECIALES
+// ════════════════════════════════════════════════════
+const BUILTIN_EV = [
+  { id:'navidad',    effect:'snow',      from:'12/22', to:'01/06' },
+  { id:'halloween',  effect:'skulls',    from:'10/28', to:'10/31' },
+  { id:'sanvalentin',effect:'hearts',    from:'02/13', to:'02/14' },
+  { id:'nochevieja', effect:'fireworks', from:'12/31', to:'12/31' },
+  { id:'reyes',      effect:'stars',     from:'01/05', to:'01/06' },
+];
+
+function listenEvents() {
+  DB.ref(`sys/${sysCode}/events`).on('value', snap => {
+    evCfg = snap.val() || {};
+    checkEvents();
+  });
+  setInterval(checkEvents, 3600000);
+}
+
+function checkEvents() {
+  const now = new Date();
+  const dd = String(now.getDate()).padStart(2,'0');
+  const mm = String(now.getMonth()+1).padStart(2,'0');
+  const today = `${dd}/${mm}`; // siempre DD/MM
+
+  let effect = null;
+
+  // Eventos builtin: from/to en formato MM/DD (ej: '12/22' = 22 de diciembre)
+  BUILTIN_EV.forEach(ev => {
+    const cfg = evCfg[ev.id];
+    if (cfg && cfg.enabled === false) return;
+    // Convertir builtin MM/DD a DD/MM para comparar con today
+    const toddmm = s => { const p=s.split('/'); return p[1]+'/'+p[0]; };
+    if (dateInRange(today, toddmm(ev.from), toddmm(ev.to))) {
+      effect = (cfg && cfg.effect) || ev.effect;
+    }
+  });
+
+  // Eventos custom: from/to en formato DD/MM (como los guarda el panel)
+  (evCfg._custom || []).forEach(ev => {
+    if (ev.enabled === false) return;
+    if (!ev.effect || ev.effect === 'none') return;
+    if (dateInRange(today, ev.from, ev.to)) {
+      effect = ev.effect;
+      console.log('[events] Evento activo:', ev.name, 'efecto:', ev.effect);
+    }
+  });
+
+  console.log('[events] hoy:', today, 'efecto:', effect || 'ninguno');
+  if (effect) startFx(effect); else stopFx();
+}
+
+function dateInRange(today, from, to) {
+  // Todos los argumentos en formato DD/MM
+  try {
+    const doy = s => {
+      const DAYS = [0,31,28,31,30,31,30,31,31,30,31,30,31];
+      const [d, m] = s.split('/').map(Number);
+      return DAYS.slice(0, m).reduce((a,b)=>a+b, 0) + d;
+    };
+    const t = doy(today), f = doy(from), l = doy(to);
+    return f <= l ? (t >= f && t <= l) : (t >= f || t <= l);
+  } catch(e) { return false; }
+}
+
+// ════════════════════════════════════════════════════
+// FX CANVAS
+// ════════════════════════════════════════════════════
+const FX_CFGS = {
+  snow:      { emojis:['❄','❅','❆'],       count:60, vy:[0.5,1.5], vx:[-0.3,0.3] },
+  hearts:    { emojis:['💕','❤️','💖'],     count:30, vy:[0.4,1.0], vx:[-0.5,0.5] },
+  skulls:    { emojis:['💀','🎃','👻'],     count:25, vy:[0.5,1.2], vx:[-0.4,0.4] },
+  fireworks: { emojis:['✨','🎆','⭐'],     count:40, vy:[0.5,1.4], vx:[-0.6,0.6] },
+  stars:     { emojis:['⭐','🌟','✨'],     count:50, vy:[0.4,1.0], vx:[-0.4,0.4] },
+  coins:     { emojis:['🪙','💰','💵'],     count:40, vy:[1.5,3.0], vx:[-0.2,0.2] },
+  none:      null,
+};
+
+function startFx(type) {
+  if (fxActive) return;
+  const cfg = FX_CFGS[type]; if (!cfg) return;
+  fxActive = true;
+
+  const cv = ge('fx-canvas');
+  cv.width = window.innerWidth; cv.height = window.innerHeight;
+  const ctx = cv.getContext('2d');
+
+  fxParticles = Array.from({ length: cfg.count }, () => ({
+    x: Math.random() * cv.width,
+    y: Math.random() * cv.height - cv.height,
+    em: cfg.emojis[Math.floor(Math.random() * cfg.emojis.length)],
+    sz: 18 + Math.random() * 22,
+    vy: cfg.vy[0] + Math.random() * (cfg.vy[1] - cfg.vy[0]),
+    vx: cfg.vx[0] + Math.random() * (cfg.vx[1] - cfg.vx[0]),
+    al: .5 + Math.random() * .5,
+    rot: Math.random() * Math.PI * 2,
+    rs: (Math.random() - .5) * .02,
+  }));
+
+  (function draw() {
+    if (!fxActive) return;
+    ctx.clearRect(0, 0, cv.width, cv.height);
+    fxParticles.forEach(p => {
+      p.y += p.vy; p.x += p.vx; p.rot += p.rs;
+      if (p.y > cv.height + 40) p.y = -40;
+      if (p.x < -40) p.x = cv.width + 40;
+      if (p.x > cv.width + 40) p.x = -40;
+      ctx.save(); ctx.globalAlpha = p.al;
+      ctx.font = p.sz + 'px serif';
+      ctx.translate(p.x, p.y); ctx.rotate(p.rot);
+      ctx.fillText(p.em, -p.sz/2, p.sz/2);
+      ctx.restore();
+    });
+    fxAnimId = requestAnimationFrame(draw);
+  })();
+}
+
+function stopFx() {
+  fxActive = false;
+  cancelAnimationFrame(fxAnimId);
+  const cv = ge('fx-canvas');
+  cv.getContext('2d').clearRect(0, 0, cv.width, cv.height);
+  fxParticles = [];
+}
+
+// ════════════════════════════════════════════════════
+// RELOJ
+// ════════════════════════════════════════════════════
+function startClock() {
+  // Reloj eliminado — se muestra temperatura en su lugar
+  setInterval(renderTicker, 60000); // actualizar ticker cada minuto
+  // Temperatura al arrancar y cada 15 min
+  setTimeout(fetchWeather, 2000);
+  setInterval(fetchWeather, 15 * 60000);
+}
+
+// ════════════════════════════════════════════════════
+// HEARTBEAT
+// ════════════════════════════════════════════════════
+function heartbeat() {
+  if (!DB || !sysCode || !screenId) return;
+  const np = PLAYLIST[curIdx] ? (PLAYLIST[curIdx].name || '—') : 'Esperando...';
+  DB.ref(`sys/${sysCode}/screens/${screenId}`).update({ lastSeen: Date.now(), nowPlaying: np }).catch(()=>{});
+
+  // Leer volumen por si el panel lo cambió
+  DB.ref(`sys/${sysCode}/screens/${screenId}/volume`).once('value').then(s => {
+    if (s.exists() && s.val() !== null) {
+      currentVol = s.val();
+      ge('vid').volume = currentVol / 100;
+      ge('aud').volume = currentVol / 100;
+    }
+  }).catch(()=>{});
+}
+
+// ════════════════════════════════════════════════════
+// TEMPERATURA (Open Meteo — sin API key)
+// ════════════════════════════════════════════════════
+async function fetchWeather() {
+  try {
+    const city = (tickerCfg.weatherCity || 'Almeria').trim();
+    const geo  = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&language=es`);
+    const gd   = await geo.json();
+    if (!gd.results || !gd.results[0]) return;
+    const { latitude, longitude } = gd.results[0];
+    const wRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current_weather=true`);
+    const wd   = await wRes.json();
+    if (wd.current_weather) {
+      weatherTemp = Math.round(wd.current_weather.temperature);
+      // Mostrar temperatura en el ticker (reemplaza al reloj)
+      const el = ge('ticker-temp');
+      if (el) {
+        el.textContent = weatherTemp + '°';
+        // Color según temperatura
+        el.style.color = weatherTemp >= 30 ? '#ff6b35'   // calor — naranja
+                       : weatherTemp >= 20 ? '#ffcc00'   // templado — amarillo
+                       : weatherTemp >= 10 ? '#00e5ff'   // fresco — azul claro
+                       : '#7ecfff';                       // frío — azul
+      }
+      renderTicker();
+    }
+  } catch(e) { console.warn('[weather]', e); }
+}
+
+// ════════════════════════════════════════════════════
+// WATCHDOG
+// ════════════════════════════════════════════════════
+let lastActivity = Date.now();
+window.onerror = (msg, src, line, col) => {
+  console.error('[CRASH]', msg, '@', line + ':' + col);
+  setTimeout(() => location.reload(), 8000);
+};
+setInterval(() => {
+  if (isPlaying && Date.now() - lastActivity > 150000) {
+    console.warn('[watchdog] Sin actividad 2.5min — recargando');
+    location.reload();
+  }
+}, 30000);
+
+// Actualizar lastActivity cuando haya actividad real
+const _origPlayItem = playItem;
+
+// Indicador online/offline
+// Status dot online/offline ya gestionado en listenFiles
+window.addEventListener('resize',  () => {
+  const cv = ge('fx-canvas');
+  if (fxActive) { cv.width = window.innerWidth; cv.height = window.innerHeight; }
+});
+</script>
+</body>
+</html>

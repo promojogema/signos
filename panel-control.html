@@ -1,0 +1,2798 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Panel de Control — SIGN.OS</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Barlow:wght@400;500;600;700;900&family=Barlow+Condensed:wght@600;700;800&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+<style>
+:root{
+  --bg:#0d0d0f;--s1:#141416;--s2:#1c1c1f;--s3:#242428;
+  --border:#2a2a2f;--border2:#333338;
+  --accent:#ffcc00;--accent2:#ff6b00;--green:#00e676;--red:#ff1744;--blue:#00b0ff;
+  --text:#f0f0f0;--text2:#888;--text3:#444;
+  --fh:'Barlow Condensed',sans-serif;--fb:'Barlow',sans-serif;--fm:'Space Mono',monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:var(--fb);min-height:100vh}
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-thumb{background:var(--border2)}
+
+#setup{position:fixed;inset:0;background:var(--bg);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px}
+.setup-wrap{width:min(520px,100%);max-width:100%}
+.brand{font-family:var(--fh);font-size:48px;font-weight:800;letter-spacing:-1px;margin-bottom:4px;white-space:nowrap}
+.brand em{color:var(--accent);font-style:normal}
+.tagline{font-family:var(--fm);font-size:11px;color:var(--text3);letter-spacing:.1em;margin-bottom:36px;white-space:nowrap}
+.tabs{display:flex;border-bottom:1px solid var(--border);margin-bottom:24px}
+.tab{background:none;border:none;padding:10px 18px;font-family:var(--fm);font-size:11px;color:var(--text3);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;transition:.2s;letter-spacing:.05em}
+.tab.on{color:var(--accent);border-bottom-color:var(--accent)}
+.panel{display:none}.panel.on{display:block}
+.lbl{font-family:var(--fm);font-size:10px;color:var(--text3);letter-spacing:.1em;text-transform:uppercase;margin-bottom:6px;display:block}
+.inp{width:100%;background:var(--s2);border:1px solid var(--border);color:var(--text);font-family:var(--fm);font-size:13px;padding:11px 14px;outline:none;transition:border-color .2s;margin-bottom:14px}
+.inp:focus{border-color:var(--accent)}
+.inp.sm{font-size:11px;padding:9px 12px}
+textarea.inp{resize:vertical;line-height:1.7}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.btn{padding:13px 20px;background:var(--accent);color:#000;border:none;font-family:var(--fh);font-size:16px;font-weight:700;cursor:pointer;width:100%;letter-spacing:.03em;transition:opacity .2s}
+.btn:hover{opacity:.85}
+.btn-g{background:transparent;color:var(--text2);border:1px solid var(--border);font-size:13px;font-family:var(--fb);font-weight:500}
+.btn-g:hover{border-color:var(--accent);color:var(--accent);opacity:1}
+.btn-sm{padding:8px 14px;font-size:13px}
+.note{font-family:var(--fm);font-size:10px;color:var(--text3);line-height:1.9;margin-top:12px}
+.serr{background:#ff174410;border:1px solid #ff174430;padding:10px 14px;font-family:var(--fm);font-size:11px;color:var(--red);margin-top:12px;display:none}
+.serr.on{display:block}
+.info-box{background:var(--s2);border-left:3px solid var(--accent);padding:12px 14px;margin-bottom:18px;font-family:var(--fm);font-size:10px;color:var(--text2);line-height:2}
+.parsed{background:var(--bg);border:1px solid var(--border);padding:12px;margin-bottom:14px;display:none}
+.parsed-ok{font-family:var(--fm);font-size:10px;color:var(--green);margin-bottom:6px}
+.parsed-data{font-family:var(--fm);font-size:10px;color:var(--text2);line-height:2}
+.recovery-box{margin-top:14px;background:var(--s2);border:1px solid var(--border2);padding:16px;display:none}
+.recovery-box.on{display:block}
+
+#app{display:none;min-height:100vh;flex-direction:column}
+.topbar{display:flex;align-items:center;border-bottom:1px solid var(--border);background:var(--s1);position:sticky;top:0;z-index:100;height:52px}
+.topbar-brand{font-family:var(--fh);font-size:22px;font-weight:800;padding:0 20px;letter-spacing:-.5px;border-right:1px solid var(--border);height:100%;display:flex;align-items:center;white-space:nowrap}
+.topbar-brand em{color:var(--accent);font-style:normal}
+.topbar-nav{display:flex;height:100%;flex:1;overflow-x:auto}
+.tnav{background:none;border:none;border-right:1px solid var(--border);padding:0 16px;font-family:var(--fm);font-size:11px;color:var(--text3);cursor:pointer;white-space:nowrap;transition:.15s;border-bottom:2px solid transparent;height:100%;letter-spacing:.04em}
+.tnav:hover{color:var(--text)}.tnav.on{color:var(--accent);border-bottom-color:var(--accent);background:var(--bg)}
+.topbar-right{display:flex;align-items:center;gap:10px;padding:0 14px;margin-left:auto;border-left:1px solid var(--border);height:100%}
+.cdot{width:7px;height:7px;border-radius:50%;background:var(--green);animation:glow 2s infinite;flex-shrink:0}
+.cdot.off{background:var(--red);animation:none}
+@keyframes glow{0%,100%{opacity:1}50%{opacity:.3}}
+.pin-chip{background:var(--s3);border:1px solid var(--border2);padding:5px 12px;font-family:var(--fm);font-size:13px;color:var(--accent);letter-spacing:.15em;cursor:pointer}
+.pin-chip:hover{border-color:var(--accent)}
+.logout-btn{background:none;border:none;color:var(--text3);font-family:var(--fm);font-size:10px;cursor:pointer}
+.logout-btn:hover{color:var(--red)}
+
+.page{display:none;padding:24px;animation:fi .2s ease}
+.page.on{display:block}
+@keyframes fi{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+.sec{font-family:var(--fh);font-size:13px;font-weight:700;color:var(--text2);letter-spacing:.15em;text-transform:uppercase;margin-bottom:16px;display:flex;align-items:center;gap:12px}
+.sec::after{content:'';flex:1;height:1px;background:var(--border)}
+
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:24px}
+@media(max-width:600px){.stats{grid-template-columns:repeat(2,1fr)}}
+.stat{background:var(--s2);border:1px solid var(--border);padding:14px 16px}
+.stat-v{font-family:var(--fh);font-size:32px;font-weight:800;color:var(--accent);line-height:1;margin-bottom:4px}
+.stat-l{font-family:var(--fm);font-size:10px;color:var(--text3);letter-spacing:.08em}
+
+.utabs{display:flex;border:1px solid var(--border)}
+.utab{flex:1;padding:10px;background:transparent;color:var(--text2);border:none;font-family:var(--fm);font-size:11px;cursor:pointer;border-right:1px solid var(--border);letter-spacing:.04em;transition:.15s}
+.utab:last-child{border-right:none}
+.utab.on{background:var(--accent);color:#000;font-weight:700}
+.upanel{background:var(--s2);border:1px solid var(--border);border-top:none;padding:18px;margin-bottom:14px;display:none}
+.upanel.on{display:block}
+.step-list{font-family:var(--fm);font-size:10px;color:var(--text2);margin-bottom:14px;line-height:2;border-left:2px solid var(--blue);padding-left:12px}
+.step-list strong{color:var(--blue)}
+.step-list.yellow{border-left-color:var(--accent)}.step-list.yellow strong{color:var(--accent)}
+.step-list.orange{border-left-color:var(--accent2)}.step-list.orange strong{color:var(--accent2)}
+.add-row{display:flex;gap:8px;margin-bottom:12px}
+.add-row .inp{flex:1;margin-bottom:0}
+.type-row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.type-row .inp{margin-bottom:0}
+/* Pestañas de sala */
+.sala-tabs{display:flex;gap:0;border:1px solid var(--border);margin-bottom:16px;overflow-x:auto;flex-wrap:nowrap}
+.sala-tab{padding:10px 18px;background:transparent;border:none;border-right:1px solid var(--border);color:var(--text3);font-family:var(--fm);font-size:10px;cursor:pointer;white-space:nowrap;transition:.15s;letter-spacing:.05em;flex-shrink:0}
+.sala-tab:last-child{border-right:none}
+.sala-tab.on{background:var(--s2);color:var(--text);font-weight:700}
+.sala-tab.common.on{color:var(--green);border-bottom:2px solid var(--green)}
+.sala-tab.room.on{color:var(--accent);border-bottom:2px solid var(--accent)}
+.sala-tab.add-room{color:var(--accent2);letter-spacing:.05em}
+.sala-tab.add-room:hover{color:var(--accent)}
+.sala-badge{display:inline-block;padding:1px 6px;font-size:8px;border-radius:2px;margin-left:4px;font-weight:700}
+.sala-badge.common{background:rgba(0,230,118,.15);color:var(--green)}
+.sala-badge.room{background:rgba(255,204,0,.15);color:var(--accent)}
+/* Zona subida directa Cloudinary */
+.drop-zone{
+  border:2px dashed var(--border2);background:var(--bg);
+  padding:28px 20px;text-align:center;cursor:pointer;
+  transition:border-color .2s,background .2s;margin-bottom:12px;
+  position:relative;
+}
+.drop-zone:hover,.drop-zone.over{border-color:var(--accent);background:rgba(255,204,0,.04)}
+.drop-zone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.drop-zone-icon{font-size:32px;margin-bottom:8px}
+.drop-zone-txt{font-family:var(--fm);font-size:11px;color:var(--text2);line-height:1.8}
+.drop-zone-txt strong{color:var(--accent)}
+.upload-progress{display:none;margin-bottom:12px}
+.upload-progress.on{display:block}
+.upload-bar-wrap{background:var(--s3);border:1px solid var(--border);height:6px;margin-top:8px;overflow:hidden}
+.upload-bar{height:100%;background:var(--accent);width:0;transition:width .2s}
+.upload-status{font-family:var(--fm);font-size:10px;color:var(--text2);margin-bottom:4px}
+.upload-queue{margin-top:10px}
+.uq-item{font-family:var(--fm);font-size:10px;padding:6px 10px;background:var(--s3);border:1px solid var(--border);margin-bottom:4px;display:flex;align-items:center;gap:8px}
+.uq-item .uq-name{flex:1;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.uq-item .uq-st{font-size:10px;flex-shrink:0}
+.uq-item.done .uq-st{color:var(--green)}
+.uq-item.err  .uq-st{color:var(--red)}
+.uq-item.uploading .uq-st{color:var(--accent)}
+
+.actions{display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap}
+.abtn{padding:9px 14px;background:var(--s2);border:1px solid var(--border);color:var(--text);font-family:var(--fm);font-size:11px;cursor:pointer;display:flex;align-items:center;gap:6px;transition:.15s;letter-spacing:.03em}
+.abtn:hover{border-color:var(--accent);color:var(--accent)}
+.abtn.primary{background:var(--accent);color:#000;border-color:var(--accent);font-weight:700}
+.abtn.primary:hover{opacity:.85;color:#000}
+.abtn.danger:hover{border-color:var(--red);color:var(--red)}
+
+.flist{display:flex;flex-direction:column;max-height:520px;overflow-y:auto}
+.fi-role{display:inline-flex;align-items:center;gap:4px;padding:5px 12px;font-family:var(--fm);font-size:11px;font-weight:700;letter-spacing:.08em;cursor:pointer;border:1px solid;transition:.15s;user-select:none;border-radius:2px}
+.fi-role.base{color:var(--green);border-color:var(--green);background:rgba(0,230,118,.1)}
+.fi-role.base:hover{background:rgba(0,230,118,.25)}
+.fi-role.playlist{color:var(--accent);border-color:var(--accent);background:rgba(255,204,0,.1)}
+.fi-role.playlist:hover{background:rgba(255,204,0,.25)}
+.flist-tabs{display:flex;gap:0;border:1px solid var(--border);margin-bottom:0}
+.flist-tab{flex:1;padding:8px;background:transparent;border:none;color:var(--text3);font-family:var(--fm);font-size:10px;cursor:pointer;border-right:1px solid var(--border);letter-spacing:.05em;transition:.15s}
+.flist-tab:last-child{border-right:none}
+.flist-tab.on{background:var(--s2);color:var(--text)}
+.flist-legend{background:var(--s2);border:1px solid var(--border);border-top:none;padding:10px 14px;font-family:var(--fm);font-size:10px;color:var(--text2);line-height:2;margin-bottom:8px}
+.fitem{display:flex;align-items:center;gap:12px;padding:12px 14px;border:1px solid var(--border);margin-bottom:-1px;background:var(--s1);transition:background .15s}
+.fitem:hover{background:var(--s2);z-index:1}
+.fitem.dragging{opacity:.4}.fitem.drag-over{border-top:2px solid var(--accent)}
+.fi-handle{color:var(--text3);cursor:grab;font-size:16px;padding:0 4px;flex-shrink:0}
+.fi-thumb{width:52px;height:36px;background:var(--bg);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.fi-info{flex:1;min-width:0}
+.fi-name{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:3px}
+.fi-meta{display:flex;gap:8px;font-family:var(--fm);font-size:10px;color:var(--text2);flex-wrap:wrap}
+.fi-tag{background:var(--s3);padding:1px 5px;font-size:9px;font-family:var(--fm)}
+.fi-ctrls{display:flex;align-items:center;gap:6px;flex-shrink:0;flex-wrap:wrap}
+.freq-sel{background:var(--bg);border:1px solid var(--border);color:var(--accent);font-family:var(--fm);font-size:10px;padding:4px 6px;outline:none;cursor:pointer}
+.dur-inp{background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:var(--fm);font-size:10px;padding:4px 6px;outline:none;width:52px;text-align:center}
+.ibtn{width:30px;height:30px;background:var(--s3);border:1px solid var(--border);color:var(--text2);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:13px;transition:.15s;flex-shrink:0}
+.ibtn:hover{border-color:var(--accent);color:var(--accent)}.ibtn.del:hover{border-color:var(--red);color:var(--red)}
+.empty{padding:40px 24px;text-align:center;border:1px dashed var(--border);background:var(--s1)}
+.empty p{font-family:var(--fm);font-size:12px;color:var(--text3);line-height:2}
+
+.gg{background:var(--s2);border:1px solid var(--border);margin-bottom:12px}
+.gg-hd{display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--border);cursor:pointer}
+.gg-title{font-family:var(--fh);font-size:16px;font-weight:700;flex:1}
+.gg-meta{font-family:var(--fm);font-size:10px;color:var(--text2)}
+.gg-bd{padding:16px}
+.gg-music{display:flex;align-items:center;gap:10px;margin-bottom:12px;padding:10px 12px;background:var(--bg);border:1px solid var(--border)}
+.gg-music-lbl{font-family:var(--fm);font-size:10px;color:var(--text2);flex-shrink:0}
+.gg-music-sel{flex:1;background:var(--bg);border:none;color:var(--accent);font-family:var(--fm);font-size:11px;outline:none;cursor:pointer}
+.gg-photos{display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:6px}
+.gg-photo{aspect-ratio:1;background:var(--bg);border:1px solid var(--border);overflow:hidden;position:relative}
+.gg-photo img{width:100%;height:100%;object-fit:cover}
+.gg-photo:hover .gg-del{opacity:1}
+.gg-del{position:absolute;inset:0;background:rgba(255,23,68,.75);display:flex;align-items:center;justify-content:center;font-size:18px;opacity:0;transition:.15s;cursor:pointer}
+
+.sch-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-bottom:20px}
+.sch-card{background:var(--s2);border:1px solid var(--border);padding:16px}
+.sch-time{font-family:var(--fm);font-size:10px;color:var(--accent);letter-spacing:.08em;margin-bottom:8px}
+.sch-name{font-family:var(--fh);font-size:17px;font-weight:700;margin-bottom:12px}
+.sch-sel{width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:var(--fm);font-size:11px;padding:8px 10px;outline:none}
+
+/* NUEVO SISTEMA HORARIOS */
+.day-tabs{display:flex;gap:0;border:1px solid var(--border);margin-bottom:0;flex-wrap:wrap}
+.day-tab{flex:1;min-width:80px;padding:10px 6px;background:transparent;border:none;color:var(--text3);font-family:var(--fm);font-size:11px;cursor:pointer;transition:.15s;text-align:center;border-right:1px solid var(--border);letter-spacing:.03em}
+.day-tab:last-child{border-right:none}
+.day-tab.on{background:var(--accent);color:#000;font-weight:700}
+.day-tab:hover:not(.on){color:var(--text);background:var(--s2)}
+.day-content{border:1px solid var(--border);border-top:none;background:var(--s2);padding:20px;margin-bottom:20px}
+.franja-tabs{display:flex;gap:0;border:1px solid var(--border);margin-bottom:0}
+.franja-tab{flex:1;padding:8px 6px;background:transparent;border:none;color:var(--text3);font-family:var(--fm);font-size:10px;cursor:pointer;transition:.15s;text-align:center;border-right:1px solid var(--border);letter-spacing:.03em}
+.franja-tab:last-child{border-right:none}
+.franja-tab.on{background:var(--s3);color:var(--accent);border-bottom:2px solid var(--accent)}
+.franja-tab:hover:not(.on){color:var(--text)}
+.franja-content{border:1px solid var(--border);border-top:none;background:var(--bg);padding:16px;margin-bottom:16px;min-height:120px}
+.playlist-item{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--s1);border:1px solid var(--border);margin-bottom:-1px;transition:background .15s}
+.playlist-item:hover{background:var(--s2);z-index:1}
+.playlist-item.dragging{opacity:.4}
+.playlist-item.drag-over{border-top:2px solid var(--accent)}
+.pl-handle{color:var(--text3);cursor:grab;font-size:14px;flex-shrink:0}
+.pl-icon{font-size:16px;flex-shrink:0}
+.pl-name{flex:1;font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pl-type{font-family:var(--fm);font-size:9px;color:var(--text3);background:var(--s3);padding:2px 6px;flex-shrink:0}
+.pl-freq{background:var(--bg);border:1px solid var(--border);color:var(--accent);font-family:var(--fm);font-size:10px;padding:3px 5px;outline:none;cursor:pointer;flex-shrink:0}
+.pl-del{width:26px;height:26px;background:var(--s3);border:1px solid var(--border);color:var(--text3);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:12px;transition:.15s;flex-shrink:0}
+.pl-del:hover{border-color:var(--red);color:var(--red)}
+.pl-empty{padding:24px;text-align:center;font-family:var(--fm);font-size:11px;color:var(--text3);line-height:2}
+.add-to-playlist{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+.add-to-playlist select{flex:1;min-width:140px;background:var(--s2);border:1px solid var(--border);color:var(--text);font-family:var(--fm);font-size:11px;padding:8px 10px;outline:none}
+.add-to-playlist select:focus{border-color:var(--accent)}
+
+.screens-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
+.sc-card{background:var(--s2);border:1px solid var(--border);padding:16px}
+.sc-card.warn{border-color:var(--accent2)}
+.sc-top{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.sc-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.sc-dot.ok{background:var(--green)}.sc-dot.off{background:var(--text3)}.sc-dot.warn{background:var(--accent)}
+.sc-name{font-family:var(--fh);font-size:18px;font-weight:700;flex:1}
+.sc-status{font-family:var(--fm);font-size:10px;color:var(--text2);margin-bottom:10px}
+.sc-vol{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.sc-vol-lbl{font-family:var(--fm);font-size:10px;color:var(--text3);width:50px;flex-shrink:0}
+.vol-sl{flex:1;accent-color:var(--accent);cursor:pointer;height:3px}
+.sc-vol-val{font-family:var(--fm);font-size:10px;color:var(--accent);width:32px;text-align:right}
+.sc-warn{background:#ff6b0015;border:1px solid #ff6b0033;padding:7px 10px;font-family:var(--fm);font-size:10px;color:var(--accent2);margin-bottom:10px}
+.sc-acts{display:flex;gap:6px}
+.new-sc-box{background:var(--s2);border:1px solid var(--border);padding:20px;margin-bottom:24px}
+.code-res{background:var(--bg);border:1px solid var(--accent);padding:16px;text-align:center;margin-top:14px;display:none}
+.code-big{font-family:var(--fh);font-size:56px;font-weight:800;color:var(--accent);letter-spacing:.3em;line-height:1;margin-bottom:6px}
+
+.urg-wrap{background:var(--s2);border:2px solid var(--accent2);padding:24px;margin-bottom:24px}
+.urg-title{font-family:var(--fh);font-size:20px;font-weight:800;color:var(--accent2);margin-bottom:16px}
+.urg-inp{width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:var(--fh);font-size:22px;font-weight:700;padding:14px 16px;outline:none;margin-bottom:12px}
+.urg-inp:focus{border-color:var(--accent2)}
+.urg-opts{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.urg-dur{display:flex;align-items:center;gap:8px;font-family:var(--fm);font-size:11px;color:var(--text2)}
+.urg-dur input{width:60px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:var(--fm);font-size:13px;padding:6px 8px;outline:none;text-align:center}
+.urg-btn{background:var(--accent2);color:#fff;border:none;font-family:var(--fh);font-size:16px;font-weight:700;padding:11px 24px;cursor:pointer;transition:opacity .2s}
+.urg-btn:hover{opacity:.85}
+.cancel-urg{background:transparent;color:var(--red);border:1px solid var(--red);font-family:var(--fm);font-size:11px;padding:8px 14px;cursor:pointer}
+.cancel-urg:hover{background:var(--red);color:#fff}
+
+.log-list{display:flex;flex-direction:column;max-height:400px;overflow-y:auto}
+.log-item{display:flex;align-items:flex-start;gap:12px;padding:10px 14px;border-bottom:1px solid var(--border);font-family:var(--fm);font-size:11px}
+.log-t{color:var(--text3);flex-shrink:0;width:50px}
+.log-s{color:var(--accent);flex-shrink:0;width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.log-m{color:var(--text2);flex:1}
+.log-i{flex-shrink:0}
+.log-i.ok{color:var(--green)}.log-i.warn{color:var(--accent2)}.log-i.err{color:var(--red)}.log-i.info{color:var(--blue)}
+
+.set-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+@media(max-width:700px){.set-grid{grid-template-columns:1fr}}
+.set-card{background:var(--s2);border:1px solid var(--border);padding:20px}
+.set-card-title{font-family:var(--fh);font-size:17px;font-weight:700;margin-bottom:16px}
+.srv-toggle{display:flex;margin-bottom:20px;border:1px solid var(--border)}
+.srv-btn{flex:1;padding:10px;background:transparent;border:none;color:var(--text2);font-family:var(--fm);font-size:11px;cursor:pointer;transition:.15s}
+.srv-btn.on{background:var(--accent);color:#000;font-weight:700}
+.logo-prev{width:100%;height:80px;background:var(--bg);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;margin-bottom:10px;overflow:hidden}
+.logo-prev img{max-width:100%;max-height:100%;object-fit:contain}
+.logo-prev span{font-family:var(--fm);font-size:11px;color:var(--text3)}
+.pin-big{font-family:var(--fh);font-size:52px;font-weight:800;color:var(--accent);letter-spacing:.3em;line-height:1;margin-bottom:4px}
+.pin-note{background:var(--s1);border:1px solid var(--border);padding:8px 10px;font-family:var(--fm);font-size:10px;color:var(--text3);line-height:1.8;margin-bottom:14px}
+
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:300;display:none;align-items:center;justify-content:center;padding:20px}
+.modal-bg.on{display:flex}
+.modal{background:var(--s1);border:1px solid var(--border2);width:min(640px,100%);max-height:90vh;overflow:auto}
+.modal-hd{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border)}
+.modal-title{font-family:var(--fh);font-size:18px;font-weight:700}
+.modal-x{background:none;border:none;color:var(--text2);font-size:22px;cursor:pointer;width:32px;height:32px;display:flex;align-items:center;justify-content:center}
+.modal-x:hover{color:var(--text)}
+.modal-body{padding:20px}
+.modal-body video,.modal-body audio{width:100%;outline:none;background:#000}
+
+.toast-wrap{position:fixed;bottom:20px;right:20px;display:flex;flex-direction:column;gap:6px;z-index:999}
+.toast{padding:11px 16px;background:var(--s2);border:1px solid var(--border);font-family:var(--fm);font-size:11px;color:var(--text);display:flex;align-items:center;gap:10px;animation:tIn .25s ease;max-width:300px;border-left-width:3px}
+.toast.ok{border-left-color:var(--green)}.toast.err{border-left-color:var(--red)}
+.toast.info{border-left-color:var(--blue)}.toast.warn{border-left-color:var(--accent2)}
+@keyframes tIn{from{opacity:0;transform:translateX(12px)}to{opacity:1;transform:none}}
+/* TICKER */
+.ticker-day-grid{display:grid;grid-template-columns:repeat(7,1fr);border:1px solid var(--border);margin-bottom:0}
+.tdb{padding:10px 4px;background:transparent;border:none;color:var(--text3);font-family:var(--fm);font-size:11px;cursor:pointer;text-align:center;border-right:1px solid var(--border);transition:.15s}
+.tdb:last-child{border-right:none}.tdb.on{background:var(--accent);color:#000;font-weight:700}.tdb:hover:not(.on){background:var(--s2);color:var(--text)}
+.ticker-box{border:1px solid var(--border);border-top:none;background:var(--s2);padding:20px;margin-bottom:20px}
+.titem{display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--s1);border:1px solid var(--border);margin-bottom:-1px}
+.titem input{flex:1;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:var(--fm);font-size:12px;padding:7px 10px;outline:none}
+.titem input:focus{border-color:var(--accent)}
+.titem-dur{width:50px;background:var(--bg);border:1px solid var(--border);color:var(--accent);font-family:var(--fm);font-size:11px;padding:6px 8px;outline:none;text-align:center}
+.ticker-prev{background:#000;padding:0 20px;border:1px solid var(--border);overflow:hidden;margin-bottom:16px;height:36px;display:flex;align-items:center}
+.ticker-prev-txt{font-family:var(--fm);font-size:12px;color:var(--accent);white-space:nowrap;animation:tscroll 18s linear infinite}
+@keyframes tscroll{from{transform:translateX(100vw)}to{transform:translateX(-100%)}}
+/* EVENTOS */
+.event-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-bottom:20px}
+.ecard{background:var(--s2);border:1px solid var(--border);padding:16px;position:relative;transition:border-color .2s}
+.ecard.on{border-color:var(--green)}
+.ecard-badge{position:absolute;top:10px;right:10px;background:var(--green);color:#000;font-family:var(--fm);font-size:9px;padding:3px 7px;font-weight:700}
+.ecard-icon{font-size:30px;margin-bottom:8px;display:block}
+.ecard-name{font-family:var(--fh);font-size:17px;font-weight:700;margin-bottom:3px}
+.ecard-dates{font-family:var(--fm);font-size:10px;color:var(--text2);margin-bottom:12px}
+.sw-row{display:flex;align-items:center;gap:8px;font-family:var(--fm);font-size:11px;color:var(--text2)}
+.sw{width:36px;height:20px;background:var(--border);border-radius:10px;position:relative;cursor:pointer;transition:background .2s;flex-shrink:0;border:none}
+.sw.on{background:var(--green)}.sw::after{content:'';position:absolute;width:14px;height:14px;background:#fff;border-radius:50%;top:3px;left:3px;transition:transform .2s}.sw.on::after{transform:translateX(16px)}
+/* STATS */
+.stats-grid-big{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;margin-bottom:24px}
+.stat-card{background:var(--s2);border:1px solid var(--border);padding:20px}
+.stat-card-t{font-family:var(--fh);font-size:16px;font-weight:700;margin-bottom:14px}
+.ssi{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)}
+.ssi:last-child{border-bottom:none}
+.ssi-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.ssi-dot.ok{background:var(--green)}.ssi-dot.off{background:var(--text3)}.ssi-dot.warn{background:var(--accent2)}
+.ssi-info{flex:1}.ssi-name{font-size:13px;font-weight:600;margin-bottom:2px}.ssi-det{font-family:var(--fm);font-size:10px;color:var(--text2)}
+.ssi-h{font-family:var(--fh);font-size:22px;font-weight:800;color:var(--accent)}
+.abar{height:5px;background:var(--border);border-radius:3px;overflow:hidden;margin-top:5px}
+.abar-fill{height:100%;background:var(--accent);border-radius:3px;transition:width .5s}
+.now-p{background:var(--bg);border:1px solid var(--border);padding:9px 13px;font-family:var(--fm);font-size:10px;color:var(--text2);margin-top:6px}
+.now-p strong{color:var(--accent)}
+/* SPONSORS */
+.sp-list{display:flex;flex-direction:column;gap:8px;margin-bottom:20px}
+.sp-item{background:var(--s2);border:1px solid var(--border);padding:16px;display:flex;gap:16px;align-items:flex-start}
+.sp-item.inactive{opacity:.5;border-style:dashed}
+.sp-body{flex:1}
+.sp-name{font-family:var(--fh);font-size:16px;font-weight:700;margin-bottom:4px}
+.sp-msg{font-family:var(--fm);font-size:11px;color:var(--accent);margin-bottom:8px;padding:8px 12px;background:var(--bg);border:1px solid var(--border)}
+.sp-meta{font-family:var(--fm);font-size:10px;color:var(--text3);display:flex;gap:12px;flex-wrap:wrap}
+.sp-tag{padding:2px 8px;background:var(--bg);border:1px solid var(--border);color:var(--text2)}
+.sp-ctrls{display:flex;gap:6px;flex-direction:column;align-items:flex-end}
+.sp-form{background:var(--s2);border:1px solid var(--border);padding:20px;margin-bottom:20px}
+.sp-form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+.sp-days{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.sp-day{padding:6px 12px;background:var(--bg);border:1px solid var(--border);color:var(--text2);font-family:var(--fm);font-size:10px;cursor:pointer;transition:.15s;user-select:none}
+.sp-day.on{background:var(--accent);border-color:var(--accent);color:#000;font-weight:700}
+.sp-franjas{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.sp-franja{padding:6px 14px;background:var(--bg);border:1px solid var(--border);color:var(--text2);font-family:var(--fm);font-size:10px;cursor:pointer;transition:.15s;user-select:none}
+.sp-franja.on{background:var(--blue);border-color:var(--blue);color:#fff;font-weight:700}
+</style>
+</head>
+<body>
+
+<!-- SETUP -->
+<div id="setup">
+ <div class="setup-wrap">
+  <div class="brand">SIGN<em>.</em>OS</div>
+  <div class="tagline">// PANEL DE CONTROL — DIGITAL SIGNAGE</div>
+  <div class="tabs">
+   <button class="tab on" onclick="goTab('login')">Entrar</button>
+   <button class="tab" onclick="goTab('register')">Crear cuenta</button>
+  </div>
+
+  <div class="panel on" id="tab-login">
+   <div class="lbl">Usuario</div>
+   <input class="inp" id="l-user" placeholder="recreativos" autocorrect="off" autocapitalize="off" onkeydown="if(event.key==='Enter')ge('l-pass').focus()">
+   <div class="lbl">Contraseña</div>
+   <input class="inp" id="l-pass" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()">
+   <button class="btn" onclick="doLogin()">Entrar →</button>
+   <div style="display:flex;justify-content:space-between;margin-top:12px">
+    <span style="font-family:var(--fm);font-size:10px;color:var(--text3)">¿Primera vez? <span style="color:var(--accent);cursor:pointer" onclick="goTab('register')">Crear cuenta</span></span>
+    <span style="font-family:var(--fm);font-size:10px;color:var(--accent2);cursor:pointer" onclick="toggleRecovery()">¿Olvidaste la contraseña?</span>
+   </div>
+   <div class="recovery-box" id="recovery-box">
+    <div style="font-family:var(--fm);font-size:10px;color:var(--accent2);margin-bottom:12px;line-height:1.8">Introduce tu usuario, nueva contraseña y el Firebase API Key de tu cuenta para verificar tu identidad.</div>
+    <div class="lbl">Usuario</div><input class="inp sm" id="r-user" placeholder="recreativos" autocorrect="off" autocapitalize="off">
+    <div class="lbl">Nueva contraseña</div><input class="inp sm" id="r-pass" type="password" placeholder="mínimo 6 caracteres">
+    <div class="lbl">Firebase API Key</div><input class="inp sm" id="r-key" placeholder="AIzaSy...">
+    <button class="btn btn-sm" onclick="doRecovery()">Cambiar contraseña →</button>
+   </div>
+  </div>
+
+  <div class="panel" id="tab-register">
+   <div class="g2">
+    <div><div class="lbl">Usuario</div><input class="inp sm" id="reg-user" placeholder="recreativos" autocorrect="off" autocapitalize="off"></div>
+    <div><div class="lbl">Contraseña</div><input class="inp sm" id="reg-pass" type="password" placeholder="mín. 6 caracteres"></div>
+   </div>
+   <div class="lbl">Nombre del negocio</div>
+   <input class="inp" id="reg-name" placeholder="Recreativos El As / Bar Central...">
+   <div class="lbl">Pega aquí tu configuración Firebase completa</div>
+   <textarea class="inp" id="reg-fb" rows="5" placeholder="const firebaseConfig = {&#10;  apiKey: &quot;AIzaSy...&quot;,&#10;  databaseURL: &quot;https://...&quot;,&#10;  ...&#10;}" oninput="parseFb()"></textarea>
+   <div class="parsed" id="fb-parsed">
+    <div class="parsed-ok">✓ Configuración detectada:</div>
+    <div class="parsed-data" id="fb-parsed-data"></div>
+   </div>
+   <button class="btn" onclick="doRegister()">Crear cuenta →</button>
+   <p class="note">La contraseña se guarda cifrada · Nadie más puede verla</p>
+  </div>
+
+  <div class="serr" id="setup-err"></div>
+ </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+ <div class="topbar">
+  <div class="topbar-brand">SIGN<em>.</em>OS</div>
+  <nav class="topbar-nav">
+   <button class="tnav on" onclick="goPage('contenido')">CONTENIDO</button>
+   <button class="tnav" onclick="goPage('galerias')">GALERÍAS</button>
+   <button class="tnav" onclick="goPage('horarios')">HORARIOS</button>
+   <button class="tnav" onclick="goPage('ticker')">📢 TICKER</button>
+   <button class="tnav" onclick="goPage('sponsors')">💼 SPONSORS</button>
+   <button class="tnav" onclick="goPage('eventos')">🎉 EVENTOS</button>
+   <button class="tnav" onclick="goPage('pantallas')">PANTALLAS</button>
+   <button class="tnav" onclick="goPage('urgente')">🚨 URGENTE</button>
+   <button class="tnav" onclick="goPage('stats')">📊 STATS</button>
+   <button class="tnav" onclick="goPage('log')">LOG</button>
+   <button class="tnav" onclick="goPage('ajustes')">AJUSTES</button>
+  </nav>
+  <div class="topbar-right">
+   <div class="cdot" id="cdot"></div>
+   <div class="pin-chip" id="pin-chip" onclick="copyPin()" title="PIN TVs">——</div>
+   <button class="logout-btn" onclick="doLogout()">salir</button>
+  </div>
+ </div>
+
+ <!-- CONTENIDO -->
+ <div class="page on" id="page-contenido">
+  <div class="stats">
+   <div class="stat"><div class="stat-v" id="st-files">0</div><div class="stat-l">ARCHIVOS</div></div>
+   <div class="stat"><div class="stat-v" id="st-screens">0</div><div class="stat-l">PANTALLAS</div></div>
+   <div class="stat"><div class="stat-v" id="st-size">0MB</div><div class="stat-l">ALMACENADO</div></div>
+   <div class="stat"><div class="stat-v" id="st-sync">—</div><div class="stat-l">ÚLTIMA SYNC</div></div>
+  </div>
+  <!-- PESTAÑAS DE SALA -->
+  <div class="sec" style="display:flex;align-items:center;justify-content:space-between">
+   <span>Contenido por sala</span>
+   <span style="font-family:var(--fm);font-size:10px;color:var(--text3)">Los archivos COMÚN van a todas las TVs · Los de cada sala solo a esa TV</span>
+  </div>
+  <div class="sala-tabs" id="sala-tabs">
+   <button class="sala-tab common on" data-sala="common" onclick="goSala('common',this)">
+    🌐 COMÚN <span class="sala-badge common" id="badge-common">0</span>
+   </button>
+   <!-- Las salas se añaden dinámicamente -->
+   <button class="sala-tab add-room" onclick="addNewRoom()">+ Nueva sala</button>
+  </div>
+  <div id="sala-name-bar" style="display:none;background:var(--s2);border:1px solid var(--border);padding:10px 14px;margin-bottom:12px;font-family:var(--fm);font-size:11px;color:var(--text2)">
+   Mostrando archivos de: <strong id="sala-current-name" style="color:var(--accent)">COMÚN</strong>
+   <span id="sala-delete-btn" style="display:none;margin-left:12px">
+    <button class="abtn btn-sm danger" onclick="deleteRoom(currentSala)">✕ Borrar sala</button>
+   </span>
+  </div>
+
+  <div class="sec">Añadir contenido</div>
+  <div class="utabs">
+   <button class="utab on" onclick="goUpload('cloudinary')">☁ Cloudinary</button>
+   <button class="utab" onclick="goUpload('drive')">📁 Google Drive</button>
+   <button class="utab" onclick="goUpload('qnap')">🖥 QNAP</button>
+   <button class="utab" onclick="goUpload('url')">🔗 URL directa</button>
+  </div>
+  <div class="upanel on" id="up-cloudinary">
+   <!-- Zona drag & drop / selección directa -->
+   <div class="drop-zone" id="drop-zone"
+     ondragover="dzOver(event)" ondragleave="dzLeave(event)" ondrop="dzDrop(event)">
+    <input type="file" id="file-picker" multiple
+      accept="video/*,image/*,audio/*"
+      onchange="dzPicked(this.files)">
+    <div class="drop-zone-icon">☁</div>
+    <div class="drop-zone-txt">
+      <strong>Arrastra archivos aquí</strong> o haz click para seleccionar<br>
+      Vídeos · Fotos · Música · Múltiples a la vez<br>
+      <span style="color:var(--text3)">Se suben directo a Cloudinary y aparecen en la TV al momento</span>
+    </div>
+   </div>
+   <!-- Progreso -->
+   <div class="upload-progress" id="upload-progress">
+    <div class="upload-status" id="upload-status">Subiendo...</div>
+    <div class="upload-bar-wrap"><div class="upload-bar" id="upload-bar"></div></div>
+    <div class="upload-queue" id="upload-queue"></div>
+   </div>
+   <!-- También se puede pegar URL manualmente -->
+   <div style="font-family:var(--fm);font-size:10px;color:var(--text3);margin:12px 0 8px;text-transform:uppercase;letter-spacing:.1em">— o pega una URL ya existente de Cloudinary —</div>
+   <div class="add-row">
+    <input class="inp" id="cl-url" placeholder="https://res.cloudinary.com/..." style="margin-bottom:0">
+    <button class="abtn primary" onclick="addFile('cloudinary')">+ Añadir</button>
+   </div>
+   <div class="type-row">
+    <div><div class="lbl">Nombre (opcional)</div><input class="inp sm" id="cl-name" placeholder="se detecta solo"></div>
+    <div><div class="lbl">Tipo</div><select class="inp sm" id="cl-type"><option value="auto">🔍 Auto</option><option value="video/mp4">🎬 Vídeo</option><option value="audio/mpeg">🎵 Música</option><option value="image/jpeg">🖼 Foto</option></select></div>
+   </div>
+  </div>
+  <div class="upanel" id="up-drive">
+   <div class="step-list yellow"><strong>PASO 1</strong> · Sube el archivo a drive.google.com<br><strong>PASO 2</strong> · Click derecho → Compartir → Cualquier persona con el enlace<br><strong>PASO 3</strong> · Copiar enlace y pegarlo aquí</div>
+   <div class="add-row"><input class="inp" id="dr-url" placeholder="https://drive.google.com/file/d/XXXX/view..." style="margin-bottom:0"><button class="abtn primary" onclick="addFile('drive')">+ Añadir</button></div>
+   <div class="type-row">
+    <div><div class="lbl">Nombre</div><input class="inp sm" id="dr-name" placeholder="promo_marzo.mp4"></div>
+    <div><div class="lbl">Tipo</div><select class="inp sm" id="dr-type"><option value="video/mp4">🎬 Vídeo MP4</option><option value="audio/mpeg">🎵 Música MP3</option><option value="image/jpeg">🖼 Foto JPG</option></select></div>
+   </div>
+  </div>
+  <div class="upanel" id="up-qnap">
+   <div class="step-list orange"><strong>PASO 1</strong> · Copia el archivo a una carpeta compartida del QNAP<br><strong>PASO 2</strong> · Activa Web Server en QNAP → App Center<br><strong>PASO 3</strong> · URL: http://IP-NAS/share/videos/archivo.mp4</div>
+   <div class="add-row"><input class="inp" id="qn-url" placeholder="http://192.168.1.100/share/videos/promo.mp4" style="margin-bottom:0"><button class="abtn primary" onclick="addFile('qnap')">+ Añadir</button></div>
+   <div class="type-row">
+    <div><div class="lbl">Nombre</div><input class="inp sm" id="qn-name" placeholder="promo_marzo.mp4"></div>
+    <div><div class="lbl">Tipo</div><select class="inp sm" id="qn-type"><option value="video/mp4">🎬 Vídeo MP4</option><option value="audio/mpeg">🎵 Música MP3</option><option value="image/jpeg">🖼 Foto JPG</option></select></div>
+   </div>
+  </div>
+  <div class="upanel" id="up-url">
+   <div class="step-list">Pega cualquier enlace directo a un vídeo, foto o música accesible públicamente.</div>
+   <div class="add-row"><input class="inp" id="ur-url" placeholder="https://ejemplo.com/video.mp4" style="margin-bottom:0"><button class="abtn primary" onclick="addFile('url')">+ Añadir</button></div>
+   <div class="type-row">
+    <div><div class="lbl">Nombre</div><input class="inp sm" id="ur-name" placeholder="video.mp4"></div>
+    <div><div class="lbl">Tipo</div><select class="inp sm" id="ur-type"><option value="video/mp4">🎬 Vídeo MP4</option><option value="audio/mpeg">🎵 Música MP3</option><option value="image/jpeg">🖼 Foto JPG</option></select></div>
+   </div>
+  </div>
+  <div class="actions">
+   <button class="abtn primary" onclick="publishNow()">📤 Publicar ahora</button>
+   <button class="abtn" onclick="pauseAll()">⏸ Pausar todo</button>
+   <button class="abtn" onclick="resumeAll()">▶ Reanudar</button>
+   <button class="abtn danger" onclick="clearAll()">🗑 Borrar todo</button>
+   <button class="abtn" onclick="runDiag()" style="border-color:var(--blue);color:var(--blue)">🔍 Diagnóstico</button>
+  </div>
+  <div class="sec">Contenido actual (<span id="file-count">0</span> archivos)</div>
+  <div class="flist-legend">
+   <strong style="color:var(--green)">▶ BASE</strong> — se reproduce siempre, todos los días en bucle &nbsp;·&nbsp;
+   <strong style="color:var(--accent)">📋 PLAYLIST</strong> — solo aparece en el día/franja donde lo configures en Horarios<br>
+   🎬 Vídeos BASE suenan con su audio &nbsp;·&nbsp; 🖼 Fotos BASE se muestran mientras suena una canción de fondo &nbsp;·&nbsp; 🎵 Música: fondo automático para las fotos<br>
+   <span style="color:var(--text3)">↓ Click en el badge verde/amarillo de cada archivo para cambiar su rol</span>
+  </div>
+  <div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap">
+   <div style="flex:1;min-width:140px;background:rgba(0,230,118,.06);border:1px solid rgba(0,230,118,.2);padding:10px 14px">
+    <div style="font-family:var(--fm);font-size:9px;color:var(--green);letter-spacing:.1em;margin-bottom:4px">CONTENIDO BASE (siempre)</div>
+    <div id="base-summary" style="font-family:var(--fm);font-size:10px;color:var(--text2)">Cargando...</div>
+   </div>
+   <div style="flex:1;min-width:140px;background:rgba(255,204,0,.06);border:1px solid rgba(255,204,0,.2);padding:10px 14px">
+    <div style="font-family:var(--fm);font-size:9px;color:var(--accent);letter-spacing:.1em;margin-bottom:4px">PLAYLIST (por día/franja)</div>
+    <div id="playlist-summary" style="font-family:var(--fm);font-size:10px;color:var(--text2)">Cargando...</div>
+   </div>
+  </div>
+  <div class="flist-tabs">
+   <button class="flist-tab on" onclick="filterFiles('all',this)">Todos (<span id="fc-all">0</span>)</button>
+   <button class="flist-tab" onclick="filterFiles('video',this)">🎬 Vídeos (<span id="fc-video">0</span>)</button>
+   <button class="flist-tab" onclick="filterFiles('image',this)">🖼 Fotos (<span id="fc-image">0</span>)</button>
+   <button class="flist-tab" onclick="filterFiles('audio',this)">🎵 Música (<span id="fc-audio">0</span>)</button>
+  </div>
+  <div class="flist" id="file-list"><div class="empty"><p>No hay archivos todavía.<br>Añade contenido arriba ↑</p></div></div>
+ </div>
+
+ <!-- GALERÍAS -->
+ <div class="page" id="page-galerias">
+  <div class="sec">Galerías de fotos con música</div>
+  <div class="actions"><button class="abtn primary" onclick="createGallery()">+ Nueva galería</button></div>
+  <div id="gallery-list"><div class="empty"><p>No hay galerías.<br>Crea una galería, añade fotos y asígnale música de fondo.</p></div></div>
+ </div>
+
+ <!-- HORARIOS -->
+ <div class="page" id="page-horarios">
+  <div class="sec">Programación semanal</div>
+  <p style="font-family:var(--fm);font-size:11px;color:var(--text2);margin-bottom:20px;line-height:1.8">
+    Crea una playlist diferente para cada día y franja horaria.<br>
+    Arrastra para reordenar · Elige cuántas veces sale cada elemento
+  </p>
+
+  <!-- SELECTOR DÍA -->
+  <div class="day-tabs" id="day-tabs">
+   <button class="day-tab on" onclick="goDay(0)">LUN</button>
+   <button class="day-tab" onclick="goDay(1)">MAR</button>
+   <button class="day-tab" onclick="goDay(2)">MIÉ</button>
+   <button class="day-tab" onclick="goDay(3)">JUE</button>
+   <button class="day-tab" onclick="goDay(4)">VIE</button>
+   <button class="day-tab" onclick="goDay(5)">SÁB</button>
+   <button class="day-tab" onclick="goDay(6)">DOM</button>
+  </div>
+
+  <div class="day-content">
+   <!-- SELECTOR FRANJA -->
+   <div class="franja-tabs" id="franja-tabs">
+    <button class="franja-tab on" onclick="goFranja(0)">🌅 Mañana 09–14h</button>
+    <button class="franja-tab" onclick="goFranja(1)">☀ Mediodía 14–17h</button>
+    <button class="franja-tab" onclick="goFranja(2)">🌆 Tarde 17–22h</button>
+    <button class="franja-tab" onclick="goFranja(3)">🌙 Noche 22–02h</button>
+   </div>
+
+   <!-- PLAYLIST EDITOR -->
+   <div class="franja-content">
+    <div id="playlist-editor">
+     <div class="pl-empty">Cargando...</div>
+    </div>
+
+    <!-- AÑADIR ELEMENTO -->
+    <div class="add-to-playlist">
+     <select id="pl-add-sel">
+      <option value="">— Selecciona vídeo, foto o galería —</option>
+     </select>
+     <button class="abtn primary" onclick="addToPlaylist()">+ Añadir</button>
+     <button class="abtn" onclick="copyDayPlaylist()" title="Copiar esta playlist a otro día">📋 Copiar a...</button>
+    </div>
+   </div>
+
+   <!-- COPIAR DÍA -->
+   <div id="copy-day-panel" style="display:none;background:var(--s3);border:1px solid var(--border);padding:14px;margin-top:8px">
+    <div style="font-family:var(--fm);font-size:11px;color:var(--text2);margin-bottom:10px">Copiar playlist actual a:</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+     <button class="abtn btn-sm" onclick="doCopyDay(0)">Lun</button>
+     <button class="abtn btn-sm" onclick="doCopyDay(1)">Mar</button>
+     <button class="abtn btn-sm" onclick="doCopyDay(2)">Mié</button>
+     <button class="abtn btn-sm" onclick="doCopyDay(3)">Jue</button>
+     <button class="abtn btn-sm" onclick="doCopyDay(4)">Vie</button>
+     <button class="abtn btn-sm" onclick="doCopyDay(5)">Sáb</button>
+     <button class="abtn btn-sm" onclick="doCopyDay(6)">Dom</button>
+     <button class="abtn btn-sm danger" onclick="ge('copy-day-panel').style.display='none'">✕ Cerrar</button>
+    </div>
+   </div>
+  </div>
+
+  <button class="btn btn-g btn-sm" onclick="saveAllPlaylists()" style="width:auto;padding:10px 24px">💾 Guardar todo</button>
+ </div>
+
+ <!-- PANTALLAS -->
+ <div class="page" id="page-pantallas">
+  <div class="sec">Gestión de pantallas</div>
+  <div class="new-sc-box">
+   <div style="font-family:var(--fh);font-size:16px;font-weight:700;margin-bottom:14px">+ Añadir pantalla nueva</div>
+   <div class="g2">
+    <div><div class="lbl">Nombre de la sala</div><input class="inp sm" id="ns-name" placeholder="Sala 1 / Entrada / Barra..."></div>
+    <div style="display:flex;align-items:flex-end"><button class="btn btn-sm" style="width:100%" onclick="createScreenCode()">Generar código →</button></div>
+   </div>
+   <div class="code-res" id="code-res">
+    <div style="font-family:var(--fm);font-size:10px;color:var(--text2);margin-bottom:6px;letter-spacing:.1em">CÓDIGO DE UN SOLO USO PARA:</div>
+    <div style="font-family:var(--fh);font-size:18px;font-weight:700;margin-bottom:8px" id="code-res-name">—</div>
+    <div class="code-big" id="code-res-val">——</div>
+    <div style="font-family:var(--fm);font-size:10px;color:var(--text3);margin-bottom:14px;line-height:1.8">Introduce este código en la TV junto al PIN del negocio.<br>Solo funciona una vez — después la TV reconecta sola automáticamente.</div>
+    <button class="abtn" onclick="copyRoomCode()" style="margin:0 auto">Copiar código</button>
+   </div>
+  </div>
+  <div class="actions"><button class="abtn" onclick="loadScreens()">↻ Actualizar</button></div>
+  <div class="screens-grid" id="screens-grid"><div class="empty" style="grid-column:1/-1"><p>No hay pantallas todavía.<br>Genera un código arriba y conéctala.</p></div></div>
+ </div>
+
+ <!-- URGENTE -->
+ <div class="page" id="page-urgente">
+  <div class="sec">Mensaje urgente</div>
+  <div class="urg-wrap">
+   <div class="urg-title">🚨 MENSAJE EN TODAS LAS PANTALLAS</div>
+   <input class="urg-inp" id="urg-msg" placeholder="JACKPOT EN SALA 2 · VEN A RECOGERLO" oninput="ge('urg-prev').textContent=this.value||'Tu mensaje aquí'">
+   <div class="urg-opts">
+    <div class="urg-dur">Duración: <input type="number" id="urg-dur" value="5" min="1" max="60"> minutos</div>
+    <button class="urg-btn" onclick="sendUrgent()">🚨 ENVIAR AHORA</button>
+    <button class="cancel-urg" onclick="cancelUrgent()">✕ Cancelar</button>
+   </div>
+  </div>
+  <div class="sec">Vista previa</div>
+  <div style="background:#000;padding:40px;text-align:center;border:1px solid var(--border)">
+   <div style="font-family:var(--fh);font-size:clamp(20px,4vw,48px);font-weight:900;color:var(--accent2)" id="urg-prev">Tu mensaje aquí</div>
+  </div>
+ </div>
+
+ <!-- LOG -->
+ <!-- SPONSORS -->
+ <div class="page" id="page-sponsors">
+  <div class="sec">Sponsors — Mensajes de patrocinadores</div>
+  <p style="font-family:var(--fm);font-size:11px;color:var(--text2);margin-bottom:20px;line-height:1.8">
+    Mensajes de texto que se desplazan en el ticker inferior de la TV, alternándose con el ticker normal.<br>
+    Cada sponsor puede configurar sus días y franjas horarias de aparición.
+  </p>
+  <div class="sp-list" id="sp-list">
+   <div class="empty"><p>No hay sponsors todavía. Añade el primero abajo.</p></div>
+  </div>
+
+  <!-- FORMULARIO NUEVO SPONSOR -->
+  <div class="sp-form">
+   <div style="font-family:var(--fh);font-size:16px;font-weight:700;margin-bottom:16px">+ Nuevo sponsor</div>
+   <div class="sp-form-grid">
+    <div>
+     <div class="lbl">Nombre del sponsor</div>
+     <input class="inp sm" id="sp-name" placeholder="Bar El Patio · Frutería Ana...">
+    </div>
+    <div>
+     <div class="lbl">Color del texto <span style="color:var(--text3)">(opcional)</span></div>
+     <input class="inp sm" id="sp-color" type="color" value="#ffcc00" style="height:40px;padding:4px 8px;cursor:pointer">
+    </div>
+   </div>
+   <div class="lbl">Mensaje que aparece en el ticker</div>
+   <input class="inp" id="sp-msg" placeholder="🍕 PIZZERÍA LA ITALIANA · C/ Mayor 12 · Tel: 950 123 456 · DESCUENTO 10% CON ESTE ANUNCIO">
+   <div style="background:var(--bg);border:1px solid var(--border);padding:0 16px;overflow:hidden;height:36px;display:flex;align-items:center;margin-bottom:16px">
+    <div id="sp-preview-txt" style="font-size:13px;color:#ffcc00;white-space:nowrap;animation:tscroll 15s linear infinite;font-family:var(--fm)">← escribe el mensaje para ver la previsualización →</div>
+   </div>
+
+   <div class="lbl" style="margin-bottom:8px">Días activos</div>
+   <div class="sp-days" id="sp-days">
+    <div class="sp-day on" data-day="lunes">LUN</div>
+    <div class="sp-day on" data-day="martes">MAR</div>
+    <div class="sp-day on" data-day="miercoles">MIÉ</div>
+    <div class="sp-day on" data-day="jueves">JUE</div>
+    <div class="sp-day on" data-day="viernes">VIE</div>
+    <div class="sp-day on" data-day="sabado">SÁB</div>
+    <div class="sp-day on" data-day="domingo">DOM</div>
+   </div>
+
+   <div class="lbl" style="margin-bottom:8px">Franjas horarias</div>
+   <div class="sp-franjas" id="sp-franjas">
+    <div class="sp-franja on" data-fr="manana">☀ Mañana 09-14h</div>
+    <div class="sp-franja on" data-fr="mediodia">🌤 Mediodía 14-17h</div>
+    <div class="sp-franja on" data-fr="tarde">🌆 Tarde 17-22h</div>
+    <div class="sp-franja on" data-fr="noche">🌙 Noche 22-02h</div>
+   </div>
+
+   <div style="display:flex;gap:10px;align-items:center;margin-top:4px">
+    <button class="abtn primary" onclick="saveSponsor()">+ Guardar sponsor</button>
+    <span style="font-family:var(--fm);font-size:10px;color:var(--text3)">Se activa en las TVs al momento</span>
+   </div>
+  </div>
+ </div>
+
+ <div class="page" id="page-log">
+  <div class="sec">Registro de actividad</div>
+  <div class="actions"><button class="abtn" onclick="clearLog()">🗑 Limpiar</button></div>
+  <div class="log-list" id="log-list"><div style="padding:20px;font-family:var(--fm);font-size:11px;color:var(--text3);text-align:center">Sin actividad</div></div>
+ </div>
+
+ <!-- AJUSTES -->
+ <div class="page" id="page-ajustes">
+  <div class="sec">Ajustes</div>
+  <div class="set-grid">
+   <div class="set-card">
+    <div class="set-card-title">🔌 Servidor de archivos</div>
+    <div class="srv-toggle">
+     <button class="srv-btn on" id="srv-firebase" onclick="setSrv('firebase')">Firebase</button>
+     <button class="srv-btn" id="srv-qnap" onclick="setSrv('qnap')">QNAP</button>
+    </div>
+    <div id="srv-firebase-fields">
+     <div class="lbl">API Key</div><input class="inp sm" id="cfg-fb-key" placeholder="AIzaSy...">
+     <div class="lbl">Database URL</div><input class="inp sm" id="cfg-fb-db" placeholder="https://xxx-rtdb...">
+     <div class="lbl">Auth Domain</div><input class="inp sm" id="cfg-fb-auth" placeholder="xxx.firebaseapp.com">
+     <div class="lbl">Project ID</div><input class="inp sm" id="cfg-fb-pid" placeholder="mi-proyecto">
+     <div class="lbl">Storage Bucket</div><input class="inp sm" id="cfg-fb-sb" placeholder="xxx.firebasestorage.app">
+    </div>
+    <div id="srv-qnap-fields" style="display:none">
+     <div class="lbl">IP del NAS</div><input class="inp sm" id="cfg-qnap-ip" placeholder="192.168.1.100">
+     <div class="lbl">Puerto</div><input class="inp sm" id="cfg-qnap-port" value="8080">
+    </div>
+    <button class="btn btn-sm" style="margin-top:12px" onclick="saveServerCfg()">Guardar</button>
+   </div>
+   <div class="set-card">
+    <div class="set-card-title">🖼 Logo del negocio</div>
+    <div class="logo-prev" id="logo-prev"><span>Sin logo</span></div>
+    <div style="position:relative;margin-bottom:12px">
+     <input type="file" accept="image/*" style="position:absolute;inset:0;opacity:0;cursor:pointer;z-index:1" onchange="uploadLogo(this.files[0])">
+     <button class="btn btn-g btn-sm" style="width:100%;pointer-events:none">Seleccionar imagen</button>
+    </div>
+    <div class="lbl">Nombre visible en la TV</div>
+    <input class="inp sm" id="cfg-biz-name" placeholder="Recreativos El As">
+    <button class="btn btn-g btn-sm" style="width:100%" onclick="saveBizCfg()">Guardar</button>
+   </div>
+   <div class="set-card">
+    <div class="set-card-title">▶ Reproducción</div>
+    <div class="lbl">Transición entre archivos</div>
+    <select class="inp sm" id="cfg-transition"><option value="fade">Fundido negro (suave)</option><option value="cut">Corte directo (rápido)</option></select>
+    <div class="lbl">Duración por defecto de fotos (seg)</div>
+    <input class="inp sm" type="number" id="cfg-photo-dur" value="5" min="1" max="60">
+    <div class="lbl">Sincronización automática cada</div>
+    <select class="inp sm" id="cfg-sync-int"><option value="5">5 minutos</option><option value="10" selected>10 minutos</option><option value="30">30 minutos</option><option value="60">1 hora</option></select>
+    <button class="btn btn-g btn-sm" style="width:100%;margin-top:4px" onclick="savePlaybackCfg()">Guardar</button>
+   </div>
+   <div class="set-card">
+    <div class="set-card-title">⚙ Sistema</div>
+    <div class="lbl">PIN para pantallas TV</div>
+    <div class="pin-big" id="pin-big">——</div>
+    <div class="pin-note">Solo sirve para conectar TVs.<br>No da acceso al panel de control.</div>
+    <button class="btn btn-g btn-sm" style="width:100%;margin-bottom:8px" onclick="copyPin()">Copiar PIN</button>
+    <button class="btn btn-g btn-sm" style="width:100%;margin-bottom:16px" onclick="regenPin()">↻ Generar PIN nuevo</button>
+    <div class="lbl">Usuario</div>
+    <div style="font-family:var(--fm);font-size:13px;color:var(--accent);margin-bottom:16px" id="user-disp">—</div>
+    <button class="btn btn-g btn-sm" style="width:100%;margin-bottom:8px;color:var(--accent2);border-color:var(--accent2)" onclick="exportCfg()">Exportar configuración</button>
+    <button class="btn btn-g btn-sm" style="width:100%;margin-bottom:8px;color:var(--blue);border-color:var(--blue)" onclick="runDiag()">🔍 Diagnóstico Firebase</button>
+    <button class="btn btn-g btn-sm" style="width:100%;color:var(--red);border-color:var(--red)" onclick="doLogout()">Cerrar sesión</button>
+   </div>
+  </div>
+ </div>
+
+ <!-- TICKER -->
+ <div class="page" id="page-ticker">
+  <div class="sec">Ticker de texto</div>
+  <p style="font-family:var(--fm);font-size:11px;color:var(--text2);margin-bottom:16px;line-height:1.8">
+    Cinta de texto que se desplaza en la parte inferior de cada pantalla TV.<br>
+    Configura mensajes diferentes para cada día — ofertas, wifi, horarios, promos.
+  </p>
+
+  <!-- PREVIEW -->
+  <div class="ticker-prev" id="ticker-prev">
+   <div class="ticker-prev-txt" id="ticker-prev-txt">☕ HOY LUNES · CAFÉ GRATIS · 📶 WIFI: recreativos2024 · 🕐 ABRIMOS DE 9:00 A 02:00</div>
+  </div>
+
+  <!-- CONFIG TEMPERATURA -->
+  <div style="background:var(--s2);border:1px solid var(--border);padding:16px;margin-bottom:16px">
+   <div style="font-family:var(--fh);font-size:15px;font-weight:700;margin-bottom:12px">🌡️ Temperatura automática</div>
+   <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+    <div>
+     <div class="lbl">Ciudad</div>
+     <input class="inp sm" id="weather-city" placeholder="Almería" style="margin-bottom:0">
+    </div>
+    <div>
+     <div class="lbl">Mensaje con temperatura</div>
+     <input class="inp sm" id="weather-msg" placeholder="Fuera hace {temp}°C · Aquí fresquito 😎" style="margin-bottom:0">
+    </div>
+   </div>
+   <div style="font-family:var(--fm);font-size:10px;color:var(--text3);margin-top:8px">Usa {temp} para insertar la temperatura actual automáticamente</div>
+  </div>
+
+  <!-- SELECTOR DÍA -->
+  <div class="ticker-day-grid" id="ticker-day-tabs">
+   <button class="tdb on" onclick="goTickerDay(0)">LUN</button>
+   <button class="tdb" onclick="goTickerDay(1)">MAR</button>
+   <button class="tdb" onclick="goTickerDay(2)">MIÉ</button>
+   <button class="tdb" onclick="goTickerDay(3)">JUE</button>
+   <button class="tdb" onclick="goTickerDay(4)">VIE</button>
+   <button class="tdb" onclick="goTickerDay(5)">SÁB</button>
+   <button class="tdb" onclick="goTickerDay(6)">DOM</button>
+  </div>
+
+  <div class="ticker-box">
+   <div id="ticker-msgs-list"></div>
+   <div style="display:flex;gap:8px;margin-top:12px">
+    <input class="inp" id="new-ticker-msg" placeholder="Escribe un mensaje para el ticker..." style="margin-bottom:0;flex:1">
+    <input type="number" class="titem-dur" id="new-ticker-dur" value="8" min="3" max="30" title="Segundos">
+    <button class="abtn primary" onclick="addTickerMsg()">+ Añadir</button>
+   </div>
+   <div style="font-family:var(--fm);font-size:10px;color:var(--text3);margin-top:8px">El número indica los segundos que se muestra cada mensaje</div>
+  </div>
+
+  <div style="display:flex;gap:8px;flex-wrap:wrap">
+   <button class="btn btn-g btn-sm" onclick="saveTickerConfig()" style="width:auto;padding:10px 24px">💾 Guardar ticker</button>
+   <button class="abtn" onclick="copyTickerToAll()">📋 Copiar este día a toda la semana</button>
+  </div>
+ </div>
+
+ <!-- EVENTOS ESPECIALES -->
+ <div class="page" id="page-eventos">
+  <div class="sec">Eventos especiales</div>
+  <p style="font-family:var(--fm);font-size:11px;color:var(--text2);margin-bottom:20px;line-height:1.8">
+    Se activan automáticamente por fecha. Añaden un efecto visual especial en todas las pantallas.<br>
+    Puedes activarlos manualmente o dejar que se activen solos.
+  </p>
+  <div class="event-grid" id="event-grid"></div>
+  <div style="background:var(--s2);border:1px solid var(--border);padding:16px">
+   <div style="font-family:var(--fh);font-size:15px;font-weight:700;margin-bottom:12px">+ Crear evento personalizado</div>
+   <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;flex-wrap:wrap">
+    <div><div class="lbl">Nombre</div><input class="inp sm" id="ev-name" placeholder="Día del Padre"></div>
+    <div><div class="lbl">Emoji</div><input class="inp sm" id="ev-emoji" placeholder="👨" style="font-size:20px;text-align:center"></div>
+    <div><div class="lbl">Desde (día/mes)</div><input class="inp sm" id="ev-from" placeholder="19/03" type="text"></div>
+    <div><div class="lbl">Hasta (día/mes)</div><input class="inp sm" id="ev-to" placeholder="19/03" type="text"></div>
+    <div>
+     <div class="lbl">Efecto visual en TV</div>
+     <select class="inp sm" id="ev-effect">
+      <option value="none">Sin efecto</option>
+      <option value="coins">🪙 Lluvia de monedas</option>
+      <option value="stars">⭐ Lluvia de estrellas</option>
+      <option value="snow">❄️ Nieve</option>
+      <option value="hearts">💕 Corazones</option>
+      <option value="fireworks">🎆 Fuegos artificiales</option>
+      <option value="skulls">💀 Calaveras</option>
+     </select>
+    </div>
+   </div>
+   <div style="margin-top:10px"><div class="lbl">Mensaje ticker especial (opcional)</div><input class="inp sm" id="ev-msg" placeholder="🎁 HOY DÍA DEL PADRE · INVITAMOS A UNA CONSUMICIÓN"></div>
+   <button class="btn btn-sm" style="margin-top:4px;width:auto;padding:10px 24px" onclick="saveCustomEvent()">Crear evento →</button>
+  </div>
+ </div>
+
+ <!-- ESTADÍSTICAS -->
+ <div class="page" id="page-stats">
+  <div class="sec">Estadísticas de pantallas</div>
+  <div class="actions">
+   <button class="abtn" onclick="loadStats()">↻ Actualizar</button>
+   <button class="abtn" onclick="clearStats()">🗑 Limpiar historial</button>
+  </div>
+  <div class="stats-grid-big" id="stats-detail">
+   <div class="empty"><p>Cargando estadísticas...</p></div>
+  </div>
+  <div class="stat-card" style="margin-bottom:16px">
+   <div class="stat-card-t">📋 Historial de actividad por sala</div>
+   <div id="stats-history"><div style="font-family:var(--fm);font-size:11px;color:var(--text3);padding:16px;text-align:center">Sin datos todavía</div></div>
+  </div>
+ </div>
+
+</div><!-- /app -->
+
+<!-- MODAL -->
+<div class="modal-bg" id="modal" onclick="closeModal(event)">
+ <div class="modal" onclick="event.stopPropagation()">
+  <div class="modal-hd">
+   <span class="modal-title" id="modal-title">Vista previa</span>
+   <button class="modal-x" onclick="closeModal()">✕</button>
+  </div>
+  <div class="modal-body" id="modal-body"></div>
+ </div>
+</div>
+<div class="toast-wrap" id="toasts"></div>
+
+<script>
+// ══ ESTADO GLOBAL ════════════════════════════════════════════════════
+let DB = null;
+let syncCode = '';
+let FILES       = [];   // todos los archivos subidos (sin duplicar)
+let ASSIGNMENTS = {};   // { common: [id,...], sala_01: [id,...] }
+let currentSala = 'common'; // pestaña activa en panel
+let GALLERIES = [];
+let SCREENS = {};
+let LOG = [];
+let lastRoomCode = '';
+let _parsedFb = null;
+
+const BOOTSTRAP = {
+  apiKey:"AIzaSyDMFoBe5i9GEhod2c3Af-mF4Dj3OvVndWg",
+  authDomain:"tvpromo-57412.firebaseapp.com",
+  databaseURL:"https://tvpromo-57412-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId:"tvpromo-57412",
+  storageBucket:"tvpromo-57412.firebasestorage.app",
+  messagingSenderId:"983812629942",
+  appId:"1:983812629942:web:4d51522ad816d28c8ecd17"
+};
+
+const SCHEDS = [
+  {id:'morning',  label:'Mañana',       time:'09:00–14:00',days:'Lun–Vie'},
+  {id:'afternoon',label:'Tarde',        time:'17:00–22:00',days:'Lun–Vie'},
+  {id:'night',    label:'Noche',        time:'22:00–02:00',days:'Lun–Vie'},
+  {id:'weekend',  label:'Fin de semana',time:'Todo el día', days:'Sáb–Dom'},
+];
+
+// ══ HELPERS ══════════════════════════════════════════════════════════
+const ge = id => document.getElementById(id);
+const gv = id => (ge(id)||{}).value||'';
+const sv = (id,val) => { const e=ge(id); if(e) e.value=val; };
+const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const fmtSize = b => !b?'0B':b<1024?b+'B':b<1048576?(b/1024).toFixed(1)+'KB':(b/1048576).toFixed(1)+'MB';
+const timeAgo = ts => { const d=Math.floor((Date.now()-ts)/1000); return d<60?'ahora':d<3600?Math.floor(d/60)+'min':d<86400?Math.floor(d/3600)+'h':Math.floor(d/86400)+'d'; };
+const genPin = () => String(Math.floor(1000+Math.random()*9000));
+const genCode = () => { const c='ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; return Array.from({length:6},()=>c[Math.floor(Math.random()*c.length)]).join(''); };
+
+function toast(msg, type='info') {
+  const w=ge('toasts'), t=document.createElement('div');
+  t.className=`toast ${type}`; t.textContent=msg;
+  w.appendChild(t); setTimeout(()=>t.remove(),4500);
+}
+function showErr(msg) {
+  const e=ge('setup-err');
+  e.textContent=msg; e.classList.add('on');
+  setTimeout(()=>e.classList.remove('on'),6000);
+}
+
+// ══ FIREBASE ═════════════════════════════════════════════════════════
+function initDB(cfg, appName) {
+  // SIEMPRE usar la instancia BOOTSTRAP — es donde están todos los datos.
+  // Ignorar instancias secundarias que causaban que el listener
+  // leyera de una DB vacía mientras los datos estaban en otra.
+  try {
+    if (!firebase.apps.length) firebase.initializeApp(BOOTSTRAP);
+    return firebase.database();
+  } catch(e) { console.error('initDB:', e); return null; }
+}
+
+async function hashPass(p) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(p));
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+
+// ══ PARSE FIREBASE CONFIG ════════════════════════════════════════════
+function parseFb() {
+  const raw = gv('reg-fb').replace(/\[([^\]]+)\]\([^)]+\)/g,'$1');
+  const get = k => { const m=raw.match(new RegExp(k+'\\s*:\\s*["\']([^"\']+)["\']')); return m?m[1].trim():''; };
+  _parsedFb = {
+    apiKey:get('apiKey'), authDomain:get('authDomain'),
+    databaseURL:get('databaseURL')||`https://${get('projectId')}-default-rtdb.europe-west1.firebasedatabase.app`,
+    projectId:get('projectId'), storageBucket:get('storageBucket'),
+    messagingSenderId:get('messagingSenderId'), appId:get('appId')
+  };
+  if (_parsedFb.apiKey) {
+    ge('fb-parsed').style.display='block';
+    ge('fb-parsed-data').innerHTML=[
+      ['API Key', _parsedFb.apiKey.slice(0,22)+'...'],
+      ['Database URL', _parsedFb.databaseURL||'⚠ No detectada'],
+      ['Project ID', _parsedFb.projectId],
+    ].map(([k,v])=>`<span style="color:var(--text3)">${k}:</span> ${v}<br>`).join('');
+  }
+}
+
+// ══ SETUP TABS ════════════════════════════════════════════════════════
+function goTab(name) {
+  document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('on',['login','register'][i]===name));
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('on'));
+  ge('tab-'+name).classList.add('on');
+}
+function toggleRecovery() {
+  const b=ge('recovery-box');
+  b.classList.toggle('on');
+  if(b.classList.contains('on')) sv('r-user',gv('l-user'));
+}
+
+// ══ REGISTER ═════════════════════════════════════════════════════════
+async function doRegister() {
+  const user = gv('reg-user').trim().toLowerCase().replace(/[^a-z0-9_-]/g,'');
+  const pass = gv('reg-pass');
+  const name = gv('reg-name').trim();
+
+  if (!user)           { showErr('Escribe un nombre de usuario'); return; }
+  if (pass.length < 6) { showErr('La contraseña necesita mínimo 6 caracteres'); return; }
+  if (!name)           { showErr('Escribe el nombre del negocio'); return; }
+  if (!_parsedFb||!_parsedFb.apiKey||!_parsedFb.databaseURL) {
+    showErr('Pega tu configuración Firebase y espera a ver "✓ Configuración detectada"'); return;
+  }
+
+  DB = initDB(BOOTSTRAP);
+  if (!DB) { showErr('Error al conectar con Firebase'); return; }
+
+  const snap = await DB.ref(`accounts/${user}`).once('value').catch(e=>{ showErr('Error: '+e.message); return null; });
+  if (!snap) return;
+  if (snap.exists()) { showErr('Ese usuario ya existe. Prueba con otro nombre.'); return; }
+
+  const passHash = await hashPass(pass);
+  const tvPin = genPin();
+  const code  = genCode();
+
+  await DB.ref(`accounts/${user}`).set({name, passHash, tvPin, code, firebase:_parsedFb, created:Date.now()});
+  // FIX: usar 'code' (recién generado) en lugar de syncCode (que aún está vacío)
+  await DB.ref(`sys/${code}/meta`).set({name, created:Date.now(), owner:user});
+
+  toast(`Cuenta "${user}" creada ✓`,'ok');
+  await startSession(user, name, code, tvPin, _parsedFb);
+}
+
+// ══ LOGIN ═════════════════════════════════════════════════════════════
+async function doLogin() {
+  const user = gv('l-user').trim().toLowerCase();
+  const pass = gv('l-pass');
+  if (!user) { showErr('Introduce tu usuario'); return; }
+  if (!pass) { showErr('Introduce tu contraseña'); return; }
+
+  DB = initDB(BOOTSTRAP);
+  if (!DB) { showErr('Error Firebase'); return; }
+
+  const snap = await DB.ref(`accounts/${user}`).once('value').catch(e=>{ showErr('Error: '+e.message); return null; });
+  if (!snap) return;
+  if (!snap.exists()) { showErr('Usuario no encontrado'); return; }
+
+  const acc = snap.val();
+  if (await hashPass(pass) !== acc.passHash) { showErr('Contraseña incorrecta'); return; }
+
+  // Reparar code si está vacío o es undefined
+  let code = acc.code;
+  if (!code || code === 'undefined' || code.length < 4) {
+    code = genCode();
+    await DB.ref(`accounts/${user}/code`).set(code);
+    await DB.ref(`sys/${code}/meta`).set({name:acc.name||user, created:Date.now(), owner:user});
+    console.log('[doLogin] Code reparado:', code);
+  }
+
+  // Reparar tvPin si está vacío
+  let tvPin = acc.tvPin;
+  if (!tvPin || tvPin === 'undefined') {
+    tvPin = genPin();
+    await DB.ref(`accounts/${user}/tvPin`).set(tvPin);
+    console.log('[doLogin] tvPin reparado:', tvPin);
+  }
+
+  toast(`Bienvenido, ${acc.name} ✓`, 'ok');
+  await startSession(user, acc.name, code, tvPin, acc.firebase);
+}
+
+// ══ RECOVERY ══════════════════════════════════════════════════════════
+async function doRecovery() {
+  const user=gv('r-user').trim().toLowerCase(), pass=gv('r-pass'), key=gv('r-key').trim();
+  if(!user||pass.length<6||!key){showErr('Rellena todos los campos');return;}
+  DB=initDB(BOOTSTRAP);
+  const snap=await DB.ref(`accounts/${user}`).once('value').catch(()=>null);
+  if(!snap||!snap.exists()){showErr('Usuario no encontrado');return;}
+  const acc=snap.val();
+  if(acc.firebase&&acc.firebase.apiKey!==key){showErr('API Key incorrecta');return;}
+  await DB.ref(`accounts/${user}/passHash`).set(await hashPass(pass));
+  toast('Contraseña cambiada ✓','ok');
+  ge('recovery-box').classList.remove('on');
+  sv('l-user',user); sv('l-pass','');
+}
+
+// ══ START SESSION ══════════════════════════════════════════════════════
+async function startSession(user, name, code, tvPin, fbCfg) {
+  // Limpiar valores inválidos
+  const cleanCode = (code && code !== 'undefined' && code.length >= 4) ? code : genCode();
+  const cleanPin  = (tvPin && tvPin !== 'undefined') ? String(tvPin) : genPin();
+  const cleanName = (name && name !== 'undefined') ? name : user;
+
+  syncCode = cleanCode;
+  console.log('[startSession] syncCode=', syncCode, 'user=', user);
+
+  localStorage.setItem('so_user', user);
+  localStorage.setItem('so_name', cleanName);
+  localStorage.setItem('so_code', cleanCode);
+  localStorage.setItem('so_pin',  cleanPin);
+  localStorage.setItem('so_fb',   JSON.stringify(fbCfg||BOOTSTRAP));
+
+  // Siempre usar BOOTSTRAP — instancia única donde están todos los datos
+  if (!DB) DB = initDB(BOOTSTRAP);
+
+  // Reparar cuenta en Firebase si tenía valores malos
+  try {
+    const accSnap = await DB.ref(`accounts/${user}`).once('value');
+    if (accSnap.exists()) {
+      const acc = accSnap.val();
+      const updates = {};
+      if (!acc.code || acc.code === 'undefined') updates.code = cleanCode;
+      if (!acc.tvPin || acc.tvPin === 'undefined') updates.tvPin = cleanPin;
+      if (!acc.name || acc.name === 'undefined') updates.name = cleanName;
+      if (Object.keys(updates).length) await DB.ref(`accounts/${user}`).update(updates);
+    }
+  } catch(e) { console.warn('[startSession] repair:', e.message); }
+
+  try {
+    const s = await DB.ref(`sys/${syncCode}/meta`).once('value');
+    if (!s.exists()) await DB.ref(`sys/${syncCode}/meta`).set({name:cleanName, created:Date.now(), owner:user});
+  } catch(e) { console.warn('[startSession] meta:', e.message); }
+
+  startApp(user, cleanPin);
+}
+
+// ══ AUTO LOGIN ═════════════════════════════════════════════════════════
+window.addEventListener('load', async () => {
+  const user  = localStorage.getItem('so_user');
+  const code  = localStorage.getItem('so_code');
+  const pin   = localStorage.getItem('so_pin');
+  const fbRaw = localStorage.getItem('so_fb');
+
+  // Validar code — debe ser string real, no "undefined"
+  const validCode = code && code !== 'undefined' && code !== 'null' && code.length >= 4;
+
+  if (user && fbRaw) {
+    try {
+      const fbCfg = JSON.parse(fbRaw);
+      // Siempre BOOTSTRAP — instancia única con todos los datos
+      DB = initDB(BOOTSTRAP);
+
+      if (validCode) {
+        syncCode = code;
+        console.log('[autoLogin] OK — syncCode:', syncCode);
+      } else {
+        // Code inválido — recuperar de Firebase
+        console.log('[autoLogin] Code inválido, recuperando de Firebase...');
+        const accSnap = await DB.ref(`accounts/${user}`).once('value');
+        if (accSnap.exists()) {
+          const acc = accSnap.val();
+          const realCode = (acc.code && acc.code !== 'undefined') ? acc.code : genCode();
+          const realPin  = (acc.tvPin && acc.tvPin !== 'undefined') ? acc.tvPin : genPin();
+          syncCode = realCode;
+          localStorage.setItem('so_code', realCode);
+          localStorage.setItem('so_pin', realPin);
+          // Guardar en Firebase si era malo
+          if (!acc.code || acc.code === 'undefined') {
+            await DB.ref(`accounts/${user}/code`).set(realCode);
+            await DB.ref(`accounts/${user}/tvPin`).set(realPin);
+          }
+          console.log('[autoLogin] Code recuperado:', syncCode);
+        }
+      }
+
+      if (!syncCode || syncCode === 'undefined') {
+        console.error('[autoLogin] No se pudo obtener syncCode');
+        return;
+      }
+
+      try {
+        const sysSnap = await DB.ref(`sys/${syncCode}/meta`).once('value');
+        if (!sysSnap.exists()) {
+          await DB.ref(`sys/${syncCode}/meta`).set({
+            name: localStorage.getItem('so_name')||user,
+            created: Date.now(), owner: user
+          });
+        }
+      } catch(e2) { console.warn('[autoLogin] meta:', e2.message); }
+
+      startApp(user, localStorage.getItem('so_pin')||pin||'');
+    } catch(e) {
+      console.error('[autoLogin] Error:', e.message);
+    }
+  }
+});
+
+// ══ START APP ══════════════════════════════════════════════════════════
+function startApp(user, pin) {
+  ge('setup').style.display = 'none';
+  ge('app').style.display = 'flex';
+  ge('pin-chip').textContent = pin||'——';
+  ge('pin-big').textContent  = pin||'——';
+  ge('user-disp').textContent = user||'—';
+  loadSettingsCfg();
+  buildScheduleUI();
+  startListeners();
+  // Precargar datos de todas las secciones al arrancar
+  setTimeout(() => {
+    loadTickerConfig();
+    loadEventsConfig();
+    loadStats();
+    loadRooms();
+    migrateUnassignedFiles(); // migrar archivos sin asignar a COMÚN
+  }, 1500);
+}
+
+// ══ LISTENERS ══════════════════════════════════════════════════════════
+function startListeners() {
+  if (!syncCode || syncCode === 'undefined') {
+    console.error('[startListeners] syncCode inválido:', syncCode);
+    return;
+  }
+  console.log('[startListeners] Escuchando sys/'+syncCode+'/files');
+
+  // Escuchar archivos — UN solo nodo, sin duplicados por sala
+  DB.ref(`sys/${syncCode}/files`).on('value', snap => {
+    console.log('[listener files] numChildren:', snap.numChildren ? snap.numChildren() : 0);
+    const arr = [];
+    if (snap.exists()) snap.forEach(c => { arr.push({id:c.key,...c.val()}); return false; });
+    arr.forEach(f => { if (!f.order || f.order < 10000) f.order = f.uploaded || Date.now(); });
+    arr.sort((a,b) => (b.order||0) - (a.order||0));
+    FILES = arr;
+    renderFiles();
+  });
+
+  // Escuchar asignaciones (qué archivos va a cada sala)
+  DB.ref(`sys/${syncCode}/assignments`).on('value', asnap => {
+    ASSIGNMENTS = asnap.val() || {};
+    renderFiles();
+    renderSalaTabs();
+    updateStats();
+    buildSchSelects();
+    ge('st-sync').textContent = new Date().toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'});
+  }, err => {
+    console.error('[listener files] ERROR:', err.message);
+  });
+
+  DB.ref(`sys/${syncCode}/galleries`).on('value', snap => {
+    GALLERIES = [];
+    if (snap.exists()) snap.forEach(c => { GALLERIES.push({id:c.key,...c.val()}); return false; });
+    renderGalleries();
+  });
+
+  DB.ref(`sys/${syncCode}/screens`).on('value', snap => {
+    SCREENS = snap.val()||{};
+    renderScreens();
+    ge('st-screens').textContent = Object.keys(SCREENS).length;
+  });
+
+  DB.ref('.info/connected').on('value', snap => {
+    ge('cdot').classList.toggle('off', snap.val()!==true);
+  });
+
+  LOG = JSON.parse(localStorage.getItem('so_log')||'[]');
+  renderLog();
+  loadPlaylists();
+  // Migración silenciosa: corregir tipos incorrectos en Firebase
+  // (archivos de audio guardados como video/mp4 por el bug del path de Cloudinary)
+  setTimeout(fixTypesInFirebase, 3000);
+}
+
+// Corrige tipos incorrectos comparando la extensión de la URL con el tipo guardado
+function fixTypesInFirebase() {
+  if (!DB || !syncCode) return;
+  FILES.forEach(f => {
+    const correctType = detectType(f.url || '');
+    // Solo corregir si hay discrepancia clara (audio guardado como vídeo)
+    const isWrong = f.type && f.type.startsWith('video/') &&
+                    correctType.startsWith('audio/');
+    if (isWrong) {
+      console.log('[fix] Corrigiendo tipo de', f.name, ':', f.type, '→', correctType);
+      DB.ref(`sys/${syncCode}/files/${f.id}/type`).set(correctType);
+    }
+  });
+}
+
+// ══ CLOUDINARY DIRECT UPLOAD ══════════════════════════════════════════
+const CL_CLOUD  = 'dwcq1ii0h';
+const CL_PRESET = 'panel_tv';
+
+// Cola de archivos pendientes
+let uploadQueue = [];
+let uploadBusy  = false;
+
+// ── Drag & Drop handlers ───────────────────────────────────────────────
+function dzOver(e)  { e.preventDefault(); ge('drop-zone').classList.add('over'); }
+function dzLeave(e) { ge('drop-zone').classList.remove('over'); }
+function dzDrop(e)  {
+  e.preventDefault();
+  ge('drop-zone').classList.remove('over');
+  const files = e.dataTransfer.files;
+  if (files && files.length) dzPicked(files);
+}
+function dzPicked(files) {
+  if (!files || !files.length) return;
+  // Añadir cada archivo a la cola
+  Array.from(files).forEach(f => {
+    uploadQueue.push(f);
+    addQueueItem(f.name, 'queue');
+  });
+  ge('upload-progress').classList.add('on');
+  if (!uploadBusy) processQueue();
+}
+
+// ── Cola de subida (uno a uno para no saturar) ─────────────────────────
+async function processQueue() {
+  if (!uploadQueue.length) { uploadBusy = false; return; }
+  uploadBusy = true;
+  const file = uploadQueue.shift();
+  await uploadOneFile(file);
+  processQueue(); // siguiente
+}
+
+// ── Subir un archivo ───────────────────────────────────────────────────
+// ── Subir un archivo ───────────────────────────────────────────────────
+async function uploadOneFile(file) {
+  updateQueueItem(file.name, 'uploading', 'Subiendo...');
+  ge('upload-status').textContent = 'Subiendo: ' + file.name;
+  setBar(0);
+  console.log('[CL] Subiendo:', file.name, 'type:', file.type, 'size:', file.size);
+
+  const fd = new FormData();
+  fd.append('file',          file);
+  fd.append('upload_preset', CL_PRESET);
+  fd.append('folder',        'signos');
+
+  // Cloudinary necesita saber el resource_type:
+  // - video/* → 'video'
+  // - image/* → 'image'
+  // - audio/* → 'video' (Cloudinary gestiona audio dentro del endpoint de vídeo)
+  // - resto   → 'raw'
+  const isAudio = file.type.startsWith('audio/');
+  const isVideo = file.type.startsWith('video/');
+  const isImage = file.type.startsWith('image/');
+  const clType  = isVideo ? 'video' : isImage ? 'image' : isAudio ? 'video' : 'raw';
+
+  const uploadUrl = `https://api.cloudinary.com/v1_1/${CL_CLOUD}/${clType}/upload`;
+
+  // Nombre limpio sin extensión ni timestamps de Cloudinary
+  const cleanName = file.name
+    .replace(/\.[^.]+$/, '')      // quitar extensión
+    .replace(/[_-]+/g, ' ')       // guiones/barras → espacios
+    .replace(/\s+/g, ' ')
+    .trim() || 'archivo';
+
+  // Tipo MIME real — siempre del objeto File del navegador, nunca de la URL
+  // (Cloudinary puede devolver URLs sin extensión si no usa filename)
+  const realType = file.type || detectType(file.name);
+
+  return new Promise(resolve => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', uploadUrl);
+
+    xhr.upload.onprogress = e => {
+      if (e.lengthComputable) setBar(Math.round(e.loaded / e.total * 100));
+    };
+
+    xhr.onload = () => {
+      console.log('[CL] Respuesta status:', xhr.status);
+      if (xhr.status === 200) {
+        try {
+          const res = JSON.parse(xhr.responseText);
+          console.log('[CL] URL devuelta:', res.secure_url, 'format:', res.format, 'resource_type:', res.resource_type);
+          let fileUrl = res.secure_url;
+
+          // Para audio (subido como 'video'): Cloudinary devuelve URL con extensión
+          // de vídeo a veces (.mp4 en vez de .mp3). Forzar la extensión correcta.
+          if (isAudio) {
+            // Cloudinary a veces devuelve .mp4 para audio — forzar extensión original
+            const ext = file.name.split('.').pop().toLowerCase();
+            const base = fileUrl.split('?')[0];
+            const hasExt = /\.[a-z0-9]{2,5}$/.test(base);
+            fileUrl = hasExt
+              ? base.replace(/\.[a-z0-9]{2,5}$/, '.' + ext)
+              : base + '.' + ext;
+          }
+
+          setBar(100);
+          updateQueueItem(file.name, 'done', '✓ Listo');
+          ge('upload-status').textContent = 'Listo: ' + cleanName;
+
+          saveFileToFirebase(fileUrl, cleanName, realType, 'cloudinary');
+        } catch(parseErr) {
+          updateQueueItem(file.name, 'err', '✗ Error respuesta');
+          console.error('[CL] Parse error:', parseErr);
+        }
+      } else {
+        let errMsg = 'Error ' + xhr.status;
+        try { errMsg = JSON.parse(xhr.responseText).error.message; } catch(_) {}
+        updateQueueItem(file.name, 'err', '✗ ' + errMsg);
+        ge('upload-status').textContent = 'Error: ' + errMsg;
+        console.error('[CL] Upload error', xhr.status, errMsg);
+        toast('Error Cloudinary: ' + errMsg, 'err');
+      }
+      resolve();
+    };
+
+    xhr.onerror = () => {
+      updateQueueItem(file.name, 'err', '✗ Sin conexión');
+      resolve();
+    };
+
+    xhr.send(fd);
+  });
+}
+
+
+
+// ══ ASIGNACIONES — qué archivos va a cada sala ════════════════════════
+
+// Añadir un archivo a una sala (sin duplicar el archivo físico)
+async function assignFileToSala(fileId, salaId) {
+  const sala = salaId || 'common';
+  const current = (ASSIGNMENTS[sala] || []);
+  if (current.includes(fileId)) return; // ya asignado
+  const updated = [...current, fileId];
+  await DB.ref(`sys/${syncCode}/assignments/${sala}`).set(updated);
+}
+
+// Quitar un archivo de una sala
+async function unassignFileFromSala(fileId, salaId) {
+  const sala = salaId || 'common';
+  const current = (ASSIGNMENTS[sala] || []);
+  const updated = current.filter(id => id !== fileId);
+  await DB.ref(`sys/${syncCode}/assignments/${sala}`).set(updated.length ? updated : null);
+}
+
+// Ver en qué salas está asignado un archivo
+function getFileSalas(fileId) {
+  const salas = [];
+  Object.entries(ASSIGNMENTS).forEach(([sala, ids]) => {
+    if (Array.isArray(ids) && ids.includes(fileId)) salas.push(sala);
+  });
+  return salas;
+}
+
+// Panel de asignación: popup para gestionar dónde va un archivo
+function openAssignPanel(fileId) {
+  const f = FILES.find(x => x.id === fileId);
+  if (!f) return;
+
+  const assigned = getFileSalas(fileId);
+  const allSalas = [
+    { id: 'common', name: '🌐 COMÚN (todas las TVs)' },
+    ...Object.entries(ROOMS).map(([id, r]) => ({ id, name: '📺 ' + r.name }))
+  ];
+
+  const rows = allSalas.map(s => {
+    const isOn = assigned.includes(s.id);
+    return `<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)">
+      <span style="flex:1;font-family:var(--fm);font-size:12px">${esc(s.name)}</span>
+      <button class="abtn btn-sm ${isOn ? '' : 'danger'}" onclick="toggleAssign('${fileId}','${s.id}',this)">
+        ${isOn ? '✓ Asignado' : '+ Asignar'}
+      </button>
+    </div>`;
+  }).join('');
+
+  // Mostrar como overlay simple
+  const existing = ge('assign-overlay');
+  if (existing) existing.remove();
+
+  const overlay = document.createElement('div');
+  overlay.id = 'assign-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:2000;display:flex;align-items:center;justify-content:center';
+  overlay.innerHTML = `
+    <div style="background:var(--bg);border:1px solid var(--border);padding:24px;width:min(480px,90vw);max-height:80vh;overflow-y:auto">
+      <div style="font-family:var(--fh);font-size:18px;font-weight:700;margin-bottom:4px">${esc(f.name)}</div>
+      <div style="font-family:var(--fm);font-size:10px;color:var(--text3);margin-bottom:16px">Selecciona en qué salas debe aparecer este archivo</div>
+      ${rows}
+      <div style="margin-top:16px;display:flex;justify-content:flex-end">
+        <button class="abtn primary" onclick="ge('assign-overlay').remove()">Cerrar</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  overlay.onclick = e => { if (e.target === overlay) overlay.remove(); };
+}
+
+async function toggleAssign(fileId, salaId, btn) {
+  const assigned = getFileSalas(fileId);
+  if (assigned.includes(salaId)) {
+    await unassignFileFromSala(fileId, salaId);
+    btn.textContent = '+ Asignar';
+    btn.className = 'abtn btn-sm danger';
+    ASSIGNMENTS[salaId] = (ASSIGNMENTS[salaId]||[]).filter(id => id !== fileId);
+  } else {
+    await assignFileToSala(fileId, salaId);
+    btn.textContent = '✓ Asignado';
+    btn.className = 'abtn btn-sm';
+    if (!ASSIGNMENTS[salaId]) ASSIGNMENTS[salaId] = [];
+    ASSIGNMENTS[salaId].push(fileId);
+  }
+  renderSalaTabs();
+}
+
+// Migración: archivos sin asignar → COMÚN (se ejecuta una vez al arrancar)
+async function migrateUnassignedFiles() {
+  if (!DB || !syncCode || !FILES.length) return;
+  try {
+    const snap = await DB.ref(`sys/${syncCode}/assignments/common`).once('value');
+    const assigned = new Set(snap.val() || []);
+    const unassigned = FILES.filter(f => !assigned.has(f.id));
+    if (!unassigned.length) return;
+    console.log(`[migrate] ${unassigned.length} archivos sin asignar → añadiendo a COMÚN`);
+    const newList = [...assigned, ...unassigned.map(f => f.id)];
+    await DB.ref(`sys/${syncCode}/assignments/common`).set(newList);
+    ASSIGNMENTS['common'] = newList;
+    toast(`${unassigned.length} archivos migrados a COMÚN ✓`, 'ok');
+    renderSalaTabs();
+    renderFiles();
+  } catch(e) { console.warn('[migrate]', e); }
+}
+
+// ══ SISTEMA DE SALAS ══════════════════════════════════════════════════
+// currentSala: 'common' = todos, 'sala_01' = solo esa sala
+// currentSala ya declarada arriba
+let ROOMS = {}; // { id: {name, created} }
+
+async function loadRooms() {
+  try {
+    const snap = await DB.ref(`sys/${syncCode}/rooms`).once('value');
+    ROOMS = {};
+    if (snap.exists()) snap.forEach(c => { ROOMS[c.key] = c.val(); return false; });
+  } catch(e) { console.warn('loadRooms:', e); }
+  renderSalaTabs();
+}
+
+function renderSalaTabs() {
+  const tabs = ge('sala-tabs');
+  if (!tabs) return;
+
+  // Mantener botón + al final
+  const addBtn = tabs.querySelector('.add-room');
+
+  // Eliminar tabs de salas anteriores (no el de common ni el +)
+  tabs.querySelectorAll('.room').forEach(t => t.remove());
+
+  // Contar archivos por sala usando ASSIGNMENTS
+  const countCommon = (ASSIGNMENTS['common'] || []).length;
+  const bc = ge('badge-common');
+  if (bc) bc.textContent = countCommon;
+
+  // Añadir tab por cada sala
+  Object.entries(ROOMS).forEach(([id, room]) => {
+    const count = (ASSIGNMENTS[id] || []).length;
+    const tab = document.createElement('button');
+    tab.className = 'sala-tab room' + (currentSala === id ? ' on' : '');
+    tab.dataset.sala = id;
+    tab.onclick = () => goSala(id, tab);
+    tab.innerHTML = `📺 ${esc(room.name)} <span class="sala-badge room">${count}</span>`;
+    tabs.insertBefore(tab, addBtn);
+  });
+
+  // Actualizar barra de nombre
+  updateSalaBar();
+}
+
+function updateSalaBar() {
+  const bar      = ge('sala-name-bar');
+  const nameEl   = ge('sala-current-name');
+  const delBtn   = ge('sala-delete-btn');
+  if (!bar) return;
+
+  if (currentSala === 'common') {
+    bar.style.display = 'none';
+  } else {
+    bar.style.display = 'block';
+    const room = ROOMS[currentSala];
+    if (nameEl) nameEl.textContent = room ? room.name : currentSala;
+    if (delBtn) delBtn.style.display = 'inline';
+  }
+}
+
+function goSala(salaId, btn) {
+  currentSala = salaId;
+  // Actualizar tab activo
+  document.querySelectorAll('.sala-tab').forEach(t => t.classList.remove('on'));
+  if (btn) btn.classList.add('on');
+  updateSalaBar();
+  renderFiles(); // refiltrar lista con la sala actual
+}
+
+async function addNewRoom() {
+  const name = prompt('Nombre de la sala (ej: Sala 1, Madrid, Recepción):');
+  if (!name || !name.trim()) return;
+  const id   = 'sala_' + Date.now();
+  const room = { name: name.trim(), created: Date.now() };
+  try {
+    await DB.ref(`sys/${syncCode}/rooms/${id}`).set(room);
+    ROOMS[id] = room;
+    toast('Sala "' + name.trim() + '" creada ✓', 'ok');
+    addLog('PANEL', 'Sala creada: ' + name.trim(), 'ok');
+    renderSalaTabs();
+    // Ir a la nueva sala
+    const newTab = document.querySelector(`[data-sala="${id}"]`);
+    goSala(id, newTab);
+  } catch(e) { toast('Error: ' + e.message, 'err'); }
+}
+
+async function deleteRoom(salaId) {
+  const room = ROOMS[salaId];
+  if (!room) return;
+  if (!confirm('¿Borrar la sala "' + room.name + '"?\nLos archivos exclusivos de esta sala también se borrarán.')) return;
+  try {
+    await DB.ref(`sys/${syncCode}/rooms/${salaId}`).remove();
+    // Borrar archivos de esa sala
+    const toDelete = FILES.filter(f => f.sala === salaId);
+    for (const f of toDelete) {
+      await DB.ref(`sys/${syncCode}/files/${f.id}`).remove();
+    }
+    delete ROOMS[salaId];
+    toast('Sala borrada', 'info');
+    goSala('common', document.querySelector('.sala-tab.common'));
+    renderSalaTabs();
+  } catch(e) { toast('Error: ' + e.message, 'err'); }
+}
+
+// ── Guardar en Firebase (reutilizable) ────────────────────────────────
+function saveFileToFirebase(url, name, type, source) {
+  if (!syncCode || !DB) { toast('Sin sesión activa','err'); return; }
+  if (!type || type === 'auto') type = detectType(url);
+
+  const ts  = Date.now();
+  const fid = 'f_' + ts + '_' + Math.random().toString(36).slice(2,5);
+  const isImg = type.startsWith('image/');
+
+  // El archivo se guarda UNA sola vez — sin campo sala
+  // La asignación a salas se gestiona en assignments/
+  DB.ref(`sys/${syncCode}/files/${fid}`).set({
+    name, type, url, source,
+    size: 0, uploaded: ts,
+    order: ts, freq: 1, duration: isImg ? 5 : 0, role: 'base'
+  }).then(async () => {
+    // Asignar automáticamente a la sala activa
+    await assignFileToSala(fid, currentSala);
+    toast(name + ' añadido' + (currentSala === 'common' ? ' a COMÚN' : ' a ' + (ROOMS[currentSala]?.name || currentSala)) + ' ✓', 'ok');
+    addLog('PANEL', 'Subido: ' + name + ' → ' + (currentSala === 'common' ? 'COMÚN' : currentSala), 'ok');
+    DB.ref(`sys/${syncCode}/command`).set({ action: 'refresh', ts: Date.now() });
+  }).catch(e => {
+    toast('Error Firebase: ' + e.message, 'err');
+  });
+}
+
+// ── UI helpers ─────────────────────────────────────────────────────────
+function setBar(pct) {
+  ge('upload-bar').style.width = pct + '%';
+}
+
+function addQueueItem(name, status) {
+  const div = document.createElement('div');
+  div.className = 'uq-item ' + status;
+  div.id = 'uqi_' + CSS.escape(name);
+  div.innerHTML = `<span class="uq-name">${esc(name)}</span><span class="uq-st">En cola</span>`;
+  ge('upload-queue').appendChild(div);
+}
+
+function updateQueueItem(name, status, label) {
+  const el = document.getElementById('uqi_' + CSS.escape(name));
+  if (!el) return;
+  el.className = 'uq-item ' + status;
+  el.querySelector('.uq-st').textContent = label;
+}
+
+// ── Limpiar la cola de UI cuando todo termina ──────────────────────────
+setInterval(() => {
+  if (!uploadBusy && !uploadQueue.length) {
+    const done = ge('upload-queue').querySelectorAll('.done,.err');
+    if (done.length && done.length === ge('upload-queue').children.length) {
+      setTimeout(() => {
+        ge('upload-progress').classList.remove('on');
+        ge('upload-queue').innerHTML = '';
+        setBar(0);
+      }, 3000);
+    }
+  }
+}, 2000);
+
+// ══ ADD FILE (por URL manual) ══════════════════════════════════════════
+function addFile(source) {
+  let url='', name='', type='';
+  if (source==='cloudinary') {
+    url=gv('cl-url').trim(); name=gv('cl-name').trim(); type=gv('cl-type');
+  } else if (source==='drive') {
+    url=convertDriveUrl(gv('dr-url').trim()); name=gv('dr-name').trim(); type=gv('dr-type');
+  } else if (source==='qnap') {
+    url=gv('qn-url').trim(); name=gv('qn-name').trim(); type=gv('qn-type');
+  } else if (source==='url') {
+    url=gv('ur-url').trim(); name=gv('ur-name').trim(); type=gv('ur-type');
+  }
+
+  if (!url) { toast('Introduce un enlace primero','warn'); return; }
+  if (!syncCode || !DB) { toast('Sin sesión activa','err'); return; }
+
+  // Nombre limpio si no lo escribió el usuario
+  if (!name) {
+    name = extractName(url)
+      .replace(/[_-]/g,' ')
+      .replace(/\.[^.]+$/, '')
+      .replace(/v\d{10,}/,'')
+      .replace(/\s+/g,' ')
+      .trim() || 'archivo';
+  }
+
+  // Reutilizar saveFileToFirebase (mismo código que la subida directa)
+  saveFileToFirebase(url, name, type, source);
+
+  // Limpiar campos
+  ['cl-url','cl-name','dr-url','dr-name','qn-url','qn-name','ur-url','ur-name']
+    .forEach(id => { const e=ge(id); if(e) e.value=''; });
+}
+
+function convertDriveUrl(url) {
+  const m=url.match(/\/d\/([a-zA-Z0-9_-]+)/)||url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+  return m?`https://drive.google.com/uc?export=download&confirm=t&id=${m[1]}`:url;
+}
+function detectType(url) {
+  // Quitar query string y trabajar solo con el path
+  const path = (url || '').toLowerCase().split('?')[0];
+  // 1. Extensión del fichero — siempre la fuente más fiable
+  //    Coger la última parte de la URL (nombre de archivo)
+  const filename = path.split('/').pop();
+  const ext = filename.split('.').pop();
+  const EXT_MAP = {
+    mp3:'audio/mpeg', ogg:'audio/ogg', wav:'audio/wav',
+    aac:'audio/aac',  m4a:'audio/mp4', flac:'audio/flac',
+    jpg:'image/jpeg', jpeg:'image/jpeg', png:'image/png',
+    gif:'image/gif',  webp:'image/webp', avif:'image/avif',
+    svg:'image/svg+xml',
+    mp4:'video/mp4',  webm:'video/webm', mov:'video/mp4',
+    avi:'video/avi',  mkv:'video/x-matroska',
+  };
+  if (EXT_MAP[ext]) return EXT_MAP[ext];
+  // 2. Cloudinary: mirar el segmento DESPUÉS de /upload/ si no hay extensión clara
+  //    Formato: .../image/upload/... o .../video/upload/... o .../raw/upload/...
+  if (/\/image\/upload\//.test(path)) return 'image/jpeg';
+  if (/\/raw\/upload\//.test(path))   return 'audio/mpeg';
+  if (/\/video\/upload\//.test(path)) return 'video/mp4';
+  // 3. Por defecto vídeo
+  return 'video/mp4';
+}
+
+function extractName(url) {
+  try {
+    const part = url.split('/').pop().split('?')[0] || 'archivo';
+    return decodeURIComponent(part);
+  } catch(e) { return 'archivo'; }
+}
+
+// ══ UPLOAD TABS ═══════════════════════════════════════════════════════
+function goUpload(name) {
+  document.querySelectorAll('.utab').forEach((t,i)=>t.classList.toggle('on',['cloudinary','drive','qnap','url'][i]===name));
+  document.querySelectorAll('.upanel').forEach(p=>p.classList.remove('on'));
+  ge('up-'+name).classList.add('on');
+}
+
+// ══ RENDER FILES ══════════════════════════════════════════════════════
+let _fileFilter = 'all';
+
+function filterFiles(type, btn) {
+  _fileFilter = type;
+  document.querySelectorAll('.flist-tab').forEach(t => t.classList.remove('on'));
+  if (btn) btn.classList.add('on');
+  renderFiles();
+}
+
+function renderFiles() {
+  const list = ge('file-list');
+
+  // Normalizar tipos
+  FILES.forEach(f => {
+    if (!f.type || f.type === 'undefined') f.type = detectType(f.url||'');
+    // Corregir audio guardado como video/mp4
+    if (f.type === 'video/mp4' && f.url && /\.(mp3|aac|wav|m4a|ogg|flac)/i.test(f.url)) {
+      f.type = detectType(f.url);
+    }
+    // Rol por defecto: base
+    if (!f.role) f.role = 'base';
+  });
+
+  // Actualizar badges de sala
+  renderSalaTabs();
+  // Actualizar resumen BASE vs PLAYLIST
+  const salaAssigned = new Set(ASSIGNMENTS[currentSala] || []);
+  const salaF  = FILES.filter(f => salaAssigned.has(f.id));
+  const baseF  = salaF.filter(f => !f.role || f.role === 'base');
+  const plF    = salaF.filter(f => f.role === 'playlist');
+  const bVids  = baseF.filter(f => f.type && f.type.startsWith('video/')).length;
+  const bImgs  = baseF.filter(f => f.type && f.type.startsWith('image/')).length;
+  const bAuds  = baseF.filter(f => f.type && f.type.startsWith('audio/')).length;
+  const el_bs  = ge('base-summary');
+  const el_pl  = ge('playlist-summary');
+  if (el_bs) el_bs.innerHTML = `🎬 ${bVids} vídeos &nbsp; 🖼 ${bImgs} fotos &nbsp; 🎵 ${bAuds} músicas`;
+  if (el_pl) el_pl.innerHTML = plF.length ? `${plF.length} archivo${plF.length>1?'s':''} — configurar en <strong>HORARIOS</strong>` : '<span style="color:var(--text3)">Sin archivos de playlist</span>';
+  const vids  = FILES.filter(f => f.type && f.type.startsWith('video/'));
+  const imgs  = FILES.filter(f => f.type && f.type.startsWith('image/'));
+  const auds  = FILES.filter(f => f.type && f.type.startsWith('audio/'));
+  const el_all   = ge('fc-all');   if (el_all)   el_all.textContent   = FILES.length;
+  const el_video = ge('fc-video'); if (el_video) el_video.textContent = vids.length;
+  const el_img   = ge('fc-image'); if (el_img)   el_img.textContent   = imgs.length;
+  const el_aud   = ge('fc-audio'); if (el_aud)   el_aud.textContent   = auds.length;
+  ge('file-count').textContent = FILES.length;
+
+  // Filtrar por sala activa usando ASSIGNMENTS
+  const assignedIds = new Set(ASSIGNMENTS[currentSala] || []);
+  const salaFiles = currentSala === 'common'
+    ? FILES.filter(f => assignedIds.has(f.id))
+    : FILES.filter(f => assignedIds.has(f.id));
+
+  // Filtrar por tipo
+  let shown = salaFiles;
+  if (_fileFilter === 'video') shown = salaFiles.filter(f => f.type && f.type.startsWith('video/'));
+  if (_fileFilter === 'image') shown = salaFiles.filter(f => f.type && f.type.startsWith('image/'));
+  if (_fileFilter === 'audio') shown = salaFiles.filter(f => f.type && f.type.startsWith('audio/'));
+
+  if (!shown.length) {
+    list.innerHTML = '<div class="empty"><p>No hay archivos de este tipo todavía.</p></div>';
+    return;
+  }
+
+  list.innerHTML = shown.map((f, i) => {
+    if (!f.type) f.type = detectType(f.url||'');
+    const isV = f.type.startsWith('video/');
+    const isA = f.type.startsWith('audio/');
+    const isI = f.type.startsWith('image/');
+    const icon = isV ? '🎬' : isA ? '🎵' : isI ? '🖼' : '📄';
+    const ext  = (f.type||'').split('/')[1]||'?';
+    const src  = {cloudinary:'☁', drive:'📁', qnap:'🖥', url:'🔗'}[f.source]||'';
+    const role = f.role || 'base';
+    const roleLabel = role === 'base' ? 'BASE' : 'PLAYLIST';
+    const durField = isI
+      ? `<input class="dur-inp" type="number" value="${f.duration||5}" min="1" max="60"
+           title="Segundos por foto" onchange="updateProp('${f.id}','duration',+this.value)">
+         <span style="font-size:9px;color:var(--text3)">s</span>`
+      : '';
+    // Índice real en FILES para drag & drop
+    const realIdx = FILES.indexOf(f);
+    return `<div class="fitem" draggable="true" data-id="${f.id}" data-idx="${realIdx}"
+      ondragstart="dStart(event)" ondragover="dOver(event)" ondrop="dDrop(event)" ondragleave="dLeave(event)">
+      <div class="fi-handle">⠿</div>
+      <div class="fi-thumb">${icon}</div>
+      <div class="fi-info">
+        <div class="fi-name">${esc(f.name)}</div>
+        <div class="fi-meta">
+          <span class="fi-tag">${ext.toUpperCase()}</span>
+          <span style="color:var(--accent2)">${src} ${f.source||''}</span>
+          <span>${new Date(f.uploaded||Date.now()).toLocaleDateString('es-ES')}</span>
+        </div>
+      </div>
+      <div class="fi-ctrls">
+        <span class="fi-role ${role}"
+          title="${role==='base'?'BASE: sale siempre en bucle. Click para cambiar a PLAYLIST':'PLAYLIST: solo sale en Horarios. Click para cambiar a BASE'}"
+          onclick="toggleRole('${f.id}')">
+          ${role==='base'?'▶ BASE':'📋 PLAYLIST'}
+        </span>
+        ${durField}
+        <select class="freq-sel" title="Veces por ciclo" onchange="updateProp('${f.id}','freq',+this.value)">
+          ${[1,2,3,5].map(n=>`<option value="${n}" ${f.freq==n?'selected':''}>${n}x</option>`).join('')}
+        </select>
+        <button class="ibtn" title="Ver en qué salas aparece" onclick="openAssignPanel('${f.id}')">📺</button>
+        <button class="ibtn" onclick="previewFile('${f.id}')">▶</button>
+        <button class="ibtn del" onclick="deleteFile('${f.id}','${esc(f.name)}')">✕</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function toggleRole(fid) {
+  const f = FILES.find(x => x.id === fid);
+  if (!f) return;
+  f.role = (f.role === 'base' || !f.role) ? 'playlist' : 'base';
+  updateProp(fid, 'role', f.role);
+  renderFiles();
+  toast(f.name + ' → ' + (f.role === 'base' ? 'BASE' : 'PLAYLIST'), 'info');
+}
+
+function updateProp(fid,prop,val){DB.ref(`sys/${syncCode}/files/${fid}/${prop}`).set(val);}
+function deleteFile(fid,name){
+  if(!confirm(`¿Borrar "${name}"?`))return;
+  DB.ref(`sys/${syncCode}/files/${fid}`).remove().then(()=>{toast(`"${name}" eliminado`,'info');addLog('PANEL','Borrado: '+name,'info');}).catch(e=>toast('Error: '+e.message,'err'));
+}
+
+let dragIdx=null;
+function dStart(e){dragIdx=+e.currentTarget.dataset.idx;e.currentTarget.classList.add('dragging')}
+function dOver(e){e.preventDefault();e.currentTarget.classList.add('drag-over')}
+function dLeave(e){e.currentTarget.classList.remove('drag-over')}
+function dDrop(e){
+  e.preventDefault();e.currentTarget.classList.remove('drag-over');
+  const ti=+e.currentTarget.dataset.idx;
+  if(dragIdx===null||dragIdx===ti)return;
+  const m=FILES.splice(dragIdx,1)[0];FILES.splice(ti,0,m);
+  FILES.forEach((f,i)=>DB.ref(`sys/${syncCode}/files/${f.id}/order`).set(i));
+  dragIdx=null;
+}
+
+function previewFile(fid){
+  const f=FILES.find(x=>x.id===fid);if(!f)return;
+  ge('modal-title').textContent=f.name;
+  const isV=f.type&&f.type.startsWith('video/');
+  const isA=f.type&&f.type.startsWith('audio/');
+  const isI=f.type&&f.type.startsWith('image/');
+  ge('modal-body').innerHTML=isV?`<video controls autoplay src="${f.url}" style="max-height:65vh"></video>`:
+    isA?`<div style="padding:24px"><audio controls autoplay src="${f.url}" style="width:100%"></audio></div>`:
+    isI?`<img src="${f.url}" style="width:100%;max-height:65vh;object-fit:contain">`:
+    '<p style="padding:20px;color:var(--text2)">Vista previa no disponible</p>';
+  ge('modal').classList.add('on');
+}
+function closeModal(e){if(e&&e.target!==ge('modal'))return;ge('modal').classList.remove('on');ge('modal-body').innerHTML='';}
+
+// ══ GALLERIES ═════════════════════════════════════════════════════════
+function createGallery(){
+  const name=prompt('Nombre de la galería:','Fotos del local');
+  if(!name)return;
+  const gid='g_'+Date.now();
+  DB.ref(`sys/${syncCode}/galleries/${gid}`).set({name,photos:[],musicId:'',musicName:'',created:Date.now()}).then(()=>toast(`Galería "${name}" creada`,'ok'));
+}
+
+function renderGalleries(){
+  const el=ge('gallery-list');
+  if(!GALLERIES.length){el.innerHTML='<div class="empty"><p>No hay galerías.<br>Crea una galería, añade fotos y asígnale música de fondo.</p></div>';return;}
+  FILES.forEach(f=>{if(!f.type)f.type=detectType(f.url||'');});
+  const photos=FILES.filter(f=>f.type.startsWith('image/'));
+  const music=FILES.filter(f=>f.type.startsWith('audio/'));
+  el.innerHTML=GALLERIES.map(g=>{
+    const gPh=(g.photos||[]).map(pid=>{
+      const f=FILES.find(x=>x.id===pid);
+      return f?`<div class="gg-photo"><img src="${f.url}" loading="lazy"><div class="gg-del" onclick="removePhoto('${g.id}','${pid}')">✕</div></div>`:'';
+    }).join('');
+    const mOpts=music.map(m=>`<option value="${m.id}" ${g.musicId===m.id?'selected':''}>${esc(m.name.replace(/\.[^.]+$/,''))}</option>`).join('');
+    const pOpts=photos.map(p=>`<option value="${p.id}">${esc(p.name.replace(/\.[^.]+$/,''))}</option>`).join('');
+    return `<div class="gg">
+      <div class="gg-hd">
+        <span style="font-size:20px">🖼</span>
+        <span class="gg-title">${esc(g.name)}</span>
+        <span class="gg-meta">${(g.photos||[]).length} fotos</span>
+        <button class="ibtn del" onclick="event.stopPropagation();deleteGallery('${g.id}')">✕</button>
+      </div>
+      <div class="gg-bd">
+        <div class="gg-music">
+          <span class="gg-music-lbl">🎵 Música:</span>
+          <select class="gg-music-sel" onchange="setGalleryMusic('${g.id}',this.value,this.options[this.selectedIndex].text)">
+            <option value="">— Sin música —</option>${mOpts}
+          </select>
+        </div>
+        <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+          <select class="inp sm" id="ap-${g.id}" style="flex:1;min-width:120px;margin-bottom:0">
+            <option value="">Seleccionar foto...</option>${pOpts}
+          </select>
+          <button class="abtn" onclick="addPhoto('${g.id}')">+ Añadir foto</button>
+        </div>
+        <div class="gg-photos">${gPh||'<p style="font-family:var(--fm);font-size:11px;color:var(--text3)">Sin fotos todavía</p>'}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function setGalleryMusic(gid,mid,mn){DB.ref(`sys/${syncCode}/galleries/${gid}`).update({musicId:mid,musicName:mn||''});}
+function addPhoto(gid){
+  const sel=ge('ap-'+gid);const pid=sel.value;if(!pid){toast('Selecciona una foto','warn');return;}
+  const g=GALLERIES.find(x=>x.id===gid);if(!g)return;
+  const photos=[...(g.photos||[])];
+  if(photos.includes(pid)){toast('Esta foto ya está en la galería','warn');return;}
+  photos.push(pid);
+  DB.ref(`sys/${syncCode}/galleries/${gid}/photos`).set(photos).then(()=>toast('Foto añadida','ok'));
+}
+function removePhoto(gid,pid){
+  const g=GALLERIES.find(x=>x.id===gid);if(!g)return;
+  DB.ref(`sys/${syncCode}/galleries/${gid}/photos`).set((g.photos||[]).filter(p=>p!==pid));
+}
+function deleteGallery(gid){
+  if(!confirm('¿Eliminar esta galería?'))return;
+  DB.ref(`sys/${syncCode}/galleries/${gid}`).remove().then(()=>toast('Galería eliminada','info'));
+}
+
+// ══ HORARIOS — SISTEMA DÍA + FRANJA + PLAYLIST ═══════════════════════
+// PLAYLISTS[dia][franja] = [{id, type, name, freq}]
+let PLAYLISTS = {};
+let currentDay = 0;
+let currentFranja = 0;
+let plDragIdx = null;
+
+const DAYS   = ['lunes','martes','miercoles','jueves','viernes','sabado','domingo'];
+const FRANJAS = ['manana','mediodia','tarde','noche'];
+const FRANJA_HOURS = [[9,14],[14,17],[17,22],[22,2]];
+
+function initPlaylists() {
+  DAYS.forEach(d => {
+    PLAYLISTS[d] = {};
+    FRANJAS.forEach(f => { PLAYLISTS[d][f] = []; });
+  });
+}
+
+function goDay(idx) {
+  currentDay = idx;
+  document.querySelectorAll('.day-tab').forEach((t,i)=>t.classList.toggle('on',i===idx));
+  renderPlaylistEditor();
+}
+
+function goFranja(idx) {
+  currentFranja = idx;
+  document.querySelectorAll('.franja-tab').forEach((t,i)=>t.classList.toggle('on',i===idx));
+  renderPlaylistEditor();
+}
+
+function getCurrentPlaylist() {
+  const d = DAYS[currentDay];
+  const f = FRANJAS[currentFranja];
+  if (!PLAYLISTS[d]) PLAYLISTS[d] = {};
+  if (!PLAYLISTS[d][f]) PLAYLISTS[d][f] = [];
+  return PLAYLISTS[d][f];
+}
+
+function setCurrentPlaylist(pl) {
+  PLAYLISTS[DAYS[currentDay]][FRANJAS[currentFranja]] = pl;
+}
+
+function renderPlaylistEditor() {
+  const pl = getCurrentPlaylist();
+  const editor = ge('playlist-editor');
+  updatePlaylistSelect();
+
+  if (!pl.length) {
+    editor.innerHTML = '<div class="pl-empty">Esta franja está vacía.<br>Añade vídeos, fotos o galerías abajo ↓<br><span style="color:var(--text3)">Si está vacía reproduce toda la lista de contenido en bucle.</span></div>';
+    return;
+  }
+
+  editor.innerHTML = pl.map((item, i) => {
+    const icon = item.type==='gallery'?'🖼':item.type&&item.type.startsWith('video/')?'🎬':item.type&&item.type.startsWith('image/')?'📷':'🎵';
+    const typeLabel = item.type==='gallery'?'GALERÍA':item.type&&item.type.startsWith('video/')?'VÍDEO':item.type&&item.type.startsWith('image/')?'FOTO':'MÚSICA';
+    return `<div class="playlist-item" draggable="true" data-idx="${i}"
+      ondragstart="plDragStart(event)" ondragover="plDragOver(event)" ondrop="plDragDrop(event)" ondragleave="plDragLeave(event)">
+      <div class="pl-handle">⠿</div>
+      <div class="pl-icon">${icon}</div>
+      <div class="pl-name">${esc(item.name||'?')}</div>
+      <span class="pl-type">${typeLabel}</span>
+      <select class="pl-freq" title="Veces que aparece" onchange="updatePlFreq(${i},+this.value)">
+        ${[1,2,3,5].map(n=>`<option value="${n}" ${item.freq==n?'selected':''}>${n}x</option>`).join('')}
+      </select>
+      <button class="pl-del" onclick="removeFromPlaylist(${i})">✕</button>
+    </div>`;
+  }).join('');
+}
+
+function updatePlaylistSelect() {
+  const sel = ge('pl-add-sel');
+  if (!sel) return;
+  // Normalizar type: si falta, inferirlo de la URL para que no desaparezca del selector
+  // Normalizar tipos de todos los archivos antes de filtrar
+  FILES.forEach(f => { if (!f.type || f.type === 'video/mp4' && f.url && f.url.match(/\.(mp3|aac|wav|m4a|ogg|flac)/i)) f.type = detectType(f.url||''); });
+  const videos = FILES.filter(f => f.type && f.type.startsWith('video/'));
+  const images = FILES.filter(f => f.type && f.type.startsWith('image/'));
+  const music  = FILES.filter(f => f.type && f.type.startsWith('audio/'));
+  // Archivos sin tipo reconocido — mostrarlos como vídeo por defecto
+  const others = FILES.filter(f => f.type && !f.type.startsWith('video/') && !f.type.startsWith('image/') && !f.type.startsWith('audio/'));
+
+  sel.innerHTML = '<option value="">— Selecciona vídeo, foto, música o galería —</option>' +
+    (videos.length ? '<optgroup label="🎬 Vídeos">'+videos.map(f=>`<option value="file|||${f.id}|||${esc(f.name)}|||${f.type}">${esc(f.name.replace(/\.[^.]+$/,''))}</option>`).join('')+'</optgroup>' : '') +
+    (images.length ? '<optgroup label="📷 Fotos">'+images.map(f=>`<option value="file|||${f.id}|||${esc(f.name)}|||${f.type}">${esc(f.name.replace(/\.[^.]+$/,''))}</option>`).join('')+'</optgroup>' : '') +
+    (music.length  ? '<optgroup label="🎵 Música">'+music.map(f=>`<option value="file|||${f.id}|||${esc(f.name)}|||${f.type}">${esc(f.name.replace(/\.[^.]+$/,''))}</option>`).join('')+'</optgroup>' : '') +
+    (GALLERIES.length ? '<optgroup label="🖼 Galerías">'+GALLERIES.map(g=>`<option value="gallery|||${g.id}|||${esc(g.name)}|||gallery">${esc(g.name)}</option>`).join('')+'</optgroup>' : '');
+}
+
+function addToPlaylist() {
+  const sel = ge('pl-add-sel');
+  const val = sel.value;
+  if (!val) { toast('Selecciona algo para añadir','warn'); return; }
+
+  // FIX: no usar split(':') — la URL puede contener ':' (https://)
+  // El value tiene formato: "kind|||id|||name|||type"
+  const parts = val.split('|||');
+  const kind = parts[0], id = parts[1], name = parts[2], type = parts[3];
+  const pl = getCurrentPlaylist();
+  pl.push({id, kind, name:decodeURIComponent(name||id), type, freq:1});
+  setCurrentPlaylist(pl);
+  renderPlaylistEditor();
+  sel.value = '';
+}
+
+function removeFromPlaylist(idx) {
+  const pl = getCurrentPlaylist();
+  pl.splice(idx, 1);
+  setCurrentPlaylist(pl);
+  renderPlaylistEditor();
+}
+
+function updatePlFreq(idx, freq) {
+  const pl = getCurrentPlaylist();
+  if (pl[idx]) pl[idx].freq = freq;
+  setCurrentPlaylist(pl);
+}
+
+// Drag reorder dentro de playlist
+function plDragStart(e){plDragIdx=+e.currentTarget.dataset.idx;e.currentTarget.classList.add('dragging')}
+function plDragOver(e){e.preventDefault();e.currentTarget.classList.add('drag-over')}
+function plDragLeave(e){e.currentTarget.classList.remove('drag-over')}
+function plDragDrop(e){
+  e.preventDefault();e.currentTarget.classList.remove('drag-over');
+  const ti=+e.currentTarget.dataset.idx;
+  if(plDragIdx===null||plDragIdx===ti)return;
+  const pl=getCurrentPlaylist();
+  const moved=pl.splice(plDragIdx,1)[0];pl.splice(ti,0,moved);
+  setCurrentPlaylist(pl);renderPlaylistEditor();plDragIdx=null;
+}
+
+// Copiar playlist a otro día
+function copyDayPlaylist() {
+  const panel = ge('copy-day-panel');
+  panel.style.display = panel.style.display==='none'?'block':'none';
+}
+
+function doCopyDay(targetDay) {
+  const srcD = DAYS[currentDay];
+  const srcF = FRANJAS[currentFranja];
+  const src  = JSON.parse(JSON.stringify(PLAYLISTS[srcD][srcF]));
+  PLAYLISTS[DAYS[targetDay]][srcF] = src;
+  ge('copy-day-panel').style.display = 'none';
+  toast(`Playlist copiada a ${DAYS[targetDay]} ✓`,'ok');
+}
+
+// Guardar todo en Firebase
+async function saveAllPlaylists() {
+  await DB.ref(`sys/${syncCode}/playlists`).set(PLAYLISTS);
+  toast('Programación guardada ✓','ok');
+  addLog('PANEL','Programación semanal guardada','ok');
+}
+
+// Cargar playlists desde Firebase
+async function loadPlaylists() {
+  initPlaylists();
+  try {
+    const snap = await DB.ref(`sys/${syncCode}/playlists`).once('value');
+    if (snap.exists()) {
+      const data = snap.val();
+      DAYS.forEach(d => {
+        if (data[d]) {
+          FRANJAS.forEach(f => {
+            if (data[d][f]) PLAYLISTS[d][f] = data[d][f];
+          });
+        }
+      });
+    }
+  } catch(e) { console.warn('loadPlaylists:', e); }
+  renderPlaylistEditor();
+}
+
+// Funciones legacy mantenidas por compatibilidad
+function buildScheduleUI(){ loadPlaylists(); }
+function buildSchSelects(){ updatePlaylistSelect(); }
+function saveSchedule(){ saveAllPlaylists(); }
+
+// ══ SCREENS ═══════════════════════════════════════════════════════════
+function createScreenCode(){
+  const name=gv('ns-name').trim();
+  if(!name){toast('Escribe el nombre de la sala','warn');return;}
+  const code=String(Math.floor(1000+Math.random()*9000));
+  lastRoomCode=code;
+  DB.ref(`sys/${syncCode}/pending_screens/${code}`).set({name,created:Date.now(),used:false})
+    .then(()=>{
+      ge('code-res').style.display='block';
+      ge('code-res-val').textContent=code;
+      ge('code-res-name').textContent=name;
+      ge('ns-name').value='';
+      toast(`Código "${code}" para "${name}" generado ✓`,'ok');
+    }).catch(e=>toast('Error: '+e.message,'err'));
+}
+
+function copyRoomCode(){navigator.clipboard.writeText(lastRoomCode).then(()=>toast('Código copiado ✓','ok'));}
+
+function loadScreens(){
+  DB.ref(`sys/${syncCode}/screens`).once('value').then(snap=>{SCREENS=snap.val()||{};renderScreens();});
+}
+
+function renderScreens(){
+  const keys=Object.keys(SCREENS);
+  const grid=ge('screens-grid');
+  if(!keys.length){grid.innerHTML='<div class="empty" style="grid-column:1/-1"><p>No hay pantallas todavía.<br>Genera un código arriba y conéctala.</p></div>';return;}
+  grid.innerHTML=keys.map(sid=>{
+    const sc=SCREENS[sid];
+    const online=sc.lastSeen&&(Date.now()-sc.lastSeen)<120000;
+    const longOff=sc.lastSeen&&(Date.now()-sc.lastSeen)>3600000;
+    const dot=longOff?'warn':online?'ok':'off';
+    const ago=sc.lastSeen?timeAgo(sc.lastSeen):'nunca';
+    const vol=sc.volume!==undefined?sc.volume:80;
+    return `<div class="sc-card${longOff?' warn':''}">
+      <div class="sc-top"><div class="sc-dot ${dot}"></div><div class="sc-name">${esc(sc.name||'Pantalla')}</div></div>
+      <div class="sc-status">${online?'🟢 Online':'🔴 Offline'} · ${ago}</div>
+      ${longOff?'<div class="sc-warn">⚠ Sin conexión hace más de 1 hora</div>':''}
+      <div class="sc-vol">
+        <span class="sc-vol-lbl">Volumen</span>
+        <input type="range" class="vol-sl" min="0" max="100" value="${vol}"
+          oninput="this.nextElementSibling.textContent=this.value+'%'"
+          onchange="setVol('${sid}',+this.value)">
+        <span class="sc-vol-val">${vol}%</span>
+      </div>
+      <div class="sc-acts">
+        <button class="abtn btn-sm" onclick="rebootScreen('${sid}')">↻ Reiniciar</button>
+        <button class="abtn btn-sm" onclick="removeScreen('${sid}')">✕ Eliminar</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function setVol(sid,vol){DB.ref(`sys/${syncCode}/screens/${sid}/volume`).set(vol);DB.ref(`sys/${syncCode}/commands/${sid}`).set({action:'volume',value:vol,ts:Date.now()});}
+function rebootScreen(sid){DB.ref(`sys/${syncCode}/commands/${sid}`).set({action:'reload',ts:Date.now()});toast('Reinicio enviado','info');}
+function removeScreen(sid){if(!confirm('¿Eliminar esta pantalla?'))return;DB.ref(`sys/${syncCode}/screens/${sid}`).remove();}
+
+// ══ URGENT ════════════════════════════════════════════════════════════
+function sendUrgent(){
+  const msg=gv('urg-msg');if(!msg.trim()){toast('Escribe un mensaje','warn');return;}
+  const dur=+gv('urg-dur')||5;
+  DB.ref(`sys/${syncCode}/urgent`).set({msg,expires:Date.now()+dur*60000,ts:Date.now()})
+    .then(()=>{toast('Mensaje enviado 🚨','ok');addLog('PANEL','Urgente: '+msg,'warn');});
+}
+function cancelUrgent(){DB.ref(`sys/${syncCode}/urgent`).remove().then(()=>toast('Mensaje cancelado','info'));}
+
+async function runDiag() {
+  const lines = [];
+  lines.push('═══ DIAGNÓSTICO SIGN.OS ═══');
+  lines.push('DB: ' + (DB ? '✓ conectado' : '✗ NO conectado'));
+  lines.push('syncCode local: ' + (syncCode || '✗ VACÍO'));
+  lines.push('Usuario: ' + (localStorage.getItem('so_user') || '✗ no hay sesión'));
+  lines.push('Firebase URL: ' + (JSON.parse(localStorage.getItem('so_fb')||'{}').databaseURL || '✗ no hay config'));
+  lines.push('Archivos en memoria (FILES[]): ' + FILES.length);
+
+  if (DB && syncCode) {
+    try {
+      await DB.ref(`sys/${syncCode}/_test`).set({ts:Date.now()});
+      await DB.ref(`sys/${syncCode}/_test`).remove();
+      lines.push('Escritura en sys/'+syncCode+': ✓ OK');
+    } catch(e) { lines.push('Escritura: ✗ ' + e.message); }
+
+    try {
+      const meta = await DB.ref(`sys/${syncCode}/meta`).once('value');
+      lines.push('meta.name: ' + (meta.exists() ? JSON.stringify(meta.val()) : '✗ no existe'));
+    } catch(e) { lines.push('Lectura meta: ✗ ' + e.message); }
+
+    try {
+      const filesSnap = await DB.ref(`sys/${syncCode}/files`).once('value');
+      lines.push('Archivos en Firebase (sys/'+syncCode+'/files): ' + (filesSnap.exists() ? filesSnap.numChildren() : 0));
+    } catch(e) { lines.push('Lectura files: ✗ ' + e.message); }
+
+    // Buscar si los datos están en otra ruta (código guardado diferente en la cuenta)
+    try {
+      const accUser = localStorage.getItem('so_user');
+      const accSnap = await DB.ref(`accounts/${accUser}`).once('value');
+      if (accSnap.exists()) {
+        const acc = accSnap.val();
+        lines.push('Code en cuenta Firebase: ' + (acc.code || '✗ no tiene'));
+        if (acc.code && acc.code !== syncCode) {
+          lines.push('⚠ DESINCRONIZACIÓN: local='+syncCode+' Firebase='+acc.code);
+          // Intentar leer archivos con el code de Firebase
+          const altFiles = await DB.ref(`sys/${acc.code}/files`).once('value');
+          lines.push('Archivos en sys/'+acc.code+'/files: ' + (altFiles.exists() ? altFiles.numChildren() : 0));
+        }
+      }
+    } catch(e) { lines.push('Check cuenta: ✗ ' + e.message); }
+
+  } else {
+    lines.push('⚠ Sin conexión — recarga e inicia sesión');
+  }
+
+  alert(lines.join('\n'));
+  console.log(lines.join('\n'));
+}
+
+function publishNow(){
+  DB.ref(`sys/${syncCode}/command`).set({action:'refresh',ts:Date.now()});
+  addLog('PANEL','Publicación manual enviada a todas las pantallas','ok');
+  toast('📤 Publicado en todas las pantallas ✓','ok');
+}
+function pauseAll(){DB.ref(`sys/${syncCode}/command`).set({action:'pause',ts:Date.now()});addLog('PANEL','Pausa global enviada','warn');toast('Pausando...','info');}
+function resumeAll(){DB.ref(`sys/${syncCode}/command`).set({action:'resume',ts:Date.now()});addLog('PANEL','Reanudación global enviada','info');toast('Reanudando...','info');}
+function clearAll(){if(!confirm('¿Borrar TODO el contenido?'))return;DB.ref(`sys/${syncCode}/files`).remove().then(()=>{toast('Todo borrado','info');addLog('PANEL','Contenido borrado','warn');});}
+
+// ══ PIN ═══════════════════════════════════════════════════════════════
+function copyPin(){navigator.clipboard.writeText(localStorage.getItem('so_pin')||'').then(()=>toast('PIN copiado ✓','ok'));}
+async function regenPin(){
+  if(!confirm('¿Generar PIN nuevo? El PIN actual dejará de funcionar.'))return;
+  const user=localStorage.getItem('so_user');
+  const newPin=genPin();
+  await DB.ref(`accounts/${user}/tvPin`).set(newPin);
+  localStorage.setItem('so_pin',newPin);
+  ge('pin-chip').textContent=newPin;
+  ge('pin-big').textContent=newPin;
+  toast('PIN nuevo: '+newPin,'ok');
+}
+
+// ══ STATS ══════════════════════════════════════════════════════════════
+function updateStats(){
+  ge('st-files').textContent=FILES.length;
+  ge('st-size').textContent=fmtSize(FILES.reduce((a,f)=>a+(f.size||0),0));
+}
+
+// ══ LOG ════════════════════════════════════════════════════════════════
+function addLog(screen,msg,type='info'){
+  LOG.unshift({screen,msg,type,ts:Date.now()});
+  if(LOG.length>200)LOG.pop();
+  localStorage.setItem('so_log',JSON.stringify(LOG));
+  if(ge('page-log').classList.contains('on'))renderLog();
+}
+function renderLog(){
+  const el=ge('log-list');
+  if(!LOG.length){el.innerHTML='<div style="padding:20px;font-family:var(--fm);font-size:11px;color:var(--text3);text-align:center">Sin actividad</div>';return;}
+  el.innerHTML=LOG.map(e=>`<div class="log-item">
+    <span class="log-t">${new Date(e.ts).toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'})}</span>
+    <span class="log-s">${esc(e.screen||'?')}</span>
+    <span class="log-m">${esc(e.msg||'')}</span>
+    <span class="log-i ${e.type||'info'}">${{ok:'✓',warn:'⚠',err:'✕',info:'·'}[e.type]||'·'}</span>
+  </div>`).join('');
+}
+function clearLog(){LOG=[];localStorage.removeItem('so_log');renderLog();}
+
+// ══ SETTINGS ══════════════════════════════════════════════════════════
+function loadSettingsCfg(){
+  const fb=JSON.parse(localStorage.getItem('so_fb')||'{}');
+  sv('cfg-fb-key',fb.apiKey||''); sv('cfg-fb-db',fb.databaseURL||'');
+  sv('cfg-fb-auth',fb.authDomain||''); sv('cfg-fb-pid',fb.projectId||'');
+  sv('cfg-fb-sb',fb.storageBucket||'');
+  sv('cfg-biz-name',localStorage.getItem('so_name')||'');
+  const logo=localStorage.getItem('so_logo');
+  if(logo) ge('logo-prev').innerHTML=`<img src="${logo}">`;
+  const pl=JSON.parse(localStorage.getItem('so_playback')||'{}');
+  if(pl.transition) ge('cfg-transition').value=pl.transition;
+  if(pl.photoDur) sv('cfg-photo-dur',pl.photoDur);
+  if(pl.syncInterval) ge('cfg-sync-int').value=pl.syncInterval;
+}
+function setSrv(mode){
+  ge('srv-firebase').classList.toggle('on',mode==='firebase');
+  ge('srv-qnap').classList.toggle('on',mode==='qnap');
+  ge('srv-firebase-fields').style.display=mode==='firebase'?'block':'none';
+  ge('srv-qnap-fields').style.display=mode==='qnap'?'block':'none';
+}
+function saveServerCfg(){
+  const cfg={apiKey:gv('cfg-fb-key'),authDomain:gv('cfg-fb-auth'),databaseURL:gv('cfg-fb-db'),projectId:gv('cfg-fb-pid'),storageBucket:gv('cfg-fb-sb'),messagingSenderId:'000000',appId:'1:000:web:000'};
+  localStorage.setItem('so_fb',JSON.stringify(cfg));
+  toast('Guardado','ok');
+}
+function saveBizCfg(){localStorage.setItem('so_name',gv('cfg-biz-name'));toast('Guardado','ok');}
+function savePlaybackCfg(){
+  const cfg={transition:gv('cfg-transition'),photoDur:+gv('cfg-photo-dur'),syncInterval:+gv('cfg-sync-int')};
+  localStorage.setItem('so_playback',JSON.stringify(cfg));
+  DB.ref(`sys/${syncCode}/config`).update(cfg);
+  toast('Guardado','ok');
+}
+function uploadLogo(file){
+  if(!file)return;
+  const r=new FileReader();
+  r.onload=e=>{localStorage.setItem('so_logo',e.target.result);ge('logo-prev').innerHTML=`<img src="${e.target.result}">`;toast('Logo guardado','ok');};
+  r.readAsDataURL(file);
+}
+function exportCfg(){
+  const cfg={user:localStorage.getItem('so_user'),name:localStorage.getItem('so_name'),code:syncCode,pin:localStorage.getItem('so_pin'),firebase:JSON.parse(localStorage.getItem('so_fb')||'{}'),exportedAt:new Date().toISOString()};
+  const blob=new Blob([JSON.stringify(cfg,null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download=`signos-${(localStorage.getItem('so_name')||'sistema').toLowerCase().replace(/[^a-z0-9]/g,'-')}.json`;
+  a.click();toast('Exportado','ok');
+}
+function doLogout(){
+  if(!confirm('¿Cerrar sesión?'))return;
+  ['so_user','so_name','so_code','so_pin','so_fb','so_logo','so_playback','so_log'].forEach(k=>localStorage.removeItem(k));
+  location.reload();
+}
+
+// ══ TICKER ════════════════════════════════════════════════════════════
+let TICKER = {}; // {lunes:[{msg,dur}], martes:[], ...}
+let tickerDay = 0;
+
+const TICKER_DAYS = ['lunes','martes','miercoles','jueves','viernes','sabado','domingo'];
+
+function initTicker() {
+  TICKER_DAYS.forEach(d => { if (!TICKER[d]) TICKER[d] = []; });
+}
+
+function goTickerDay(idx) {
+  tickerDay = idx;
+  document.querySelectorAll('.tdb').forEach((t,i)=>t.classList.toggle('on',i===idx));
+  renderTickerMsgs();
+  updateTickerPreview();
+}
+
+function renderTickerMsgs() {
+  const day = TICKER_DAYS[tickerDay];
+  const msgs = TICKER[day] || [];
+  const el = ge('ticker-msgs-list');
+  if (!msgs.length) {
+    el.innerHTML = '<div style="padding:20px;font-family:var(--fm);font-size:11px;color:var(--text3);text-align:center">Sin mensajes para este día.<br>Añade mensajes abajo ↓</div>';
+    return;
+  }
+  el.innerHTML = msgs.map((m,i) => `
+    <div class="titem">
+      <span style="font-family:var(--fm);font-size:10px;color:var(--text3);width:20px;text-align:center">${i+1}</span>
+      <input value="${esc(m.msg)}" onchange="updateTickerMsg(${i},this.value)" placeholder="Mensaje...">
+      <input type="number" class="titem-dur" value="${m.dur||8}" min="3" max="30" onchange="updateTickerDur(${i},+this.value)" title="Segundos">
+      <button class="ibtn del" onclick="removeTickerMsg(${i})">✕</button>
+    </div>`).join('');
+}
+
+function addTickerMsg() {
+  const msg = gv('new-ticker-msg').trim();
+  if (!msg) { toast('Escribe un mensaje','warn'); return; }
+  const dur = +gv('new-ticker-dur') || 8;
+  const day = TICKER_DAYS[tickerDay];
+  if (!TICKER[day]) TICKER[day] = [];
+  TICKER[day].push({msg, dur});
+  ge('new-ticker-msg').value = '';
+  renderTickerMsgs();
+  updateTickerPreview();
+}
+
+function updateTickerMsg(idx, val) {
+  const day = TICKER_DAYS[tickerDay];
+  if (TICKER[day] && TICKER[day][idx]) TICKER[day][idx].msg = val;
+  updateTickerPreview();
+}
+
+function updateTickerDur(idx, val) {
+  const day = TICKER_DAYS[tickerDay];
+  if (TICKER[day] && TICKER[day][idx]) TICKER[day][idx].dur = val;
+}
+
+function removeTickerMsg(idx) {
+  const day = TICKER_DAYS[tickerDay];
+  TICKER[day].splice(idx, 1);
+  renderTickerMsgs();
+  updateTickerPreview();
+}
+
+function updateTickerPreview() {
+  const day = TICKER_DAYS[tickerDay];
+  const msgs = (TICKER[day] || []).map(m => m.msg).join('  ·  ');
+  const weatherMsg = gv('weather-msg') || '';
+  const full = [msgs, weatherMsg].filter(Boolean).join('  ·  ') || 'Sin mensajes configurados';
+  ge('ticker-prev-txt').textContent = full;
+}
+
+function copyTickerToAll() {
+  const day = TICKER_DAYS[tickerDay];
+  const src = JSON.parse(JSON.stringify(TICKER[day] || []));
+  TICKER_DAYS.forEach(d => { TICKER[d] = JSON.parse(JSON.stringify(src)); });
+  toast('Ticker copiado a todos los días ✓', 'ok');
+}
+
+async function saveTickerConfig() {
+  // La TV espera: { lunes:[{text,dur}], martes:[], ..., weatherCity, weatherMsg }
+  // Convertir desde TICKER que usa { msg, dur } → { text, dur }
+  const config = {};
+  TICKER_DAYS.forEach(d => {
+    config[d] = (TICKER[d] || []).map(m => ({ text: m.msg || m.text || '', dur: m.dur || 8 }));
+  });
+  config.weatherCity = gv('weather-city').trim() || 'Almeria';
+  config.weatherMsg  = gv('weather-msg').trim()  || 'Fuera hace {temp}°C';
+  config.updatedAt   = Date.now();
+
+  await DB.ref(`sys/${syncCode}/ticker`).set(config);
+  toast('Ticker guardado ✓', 'ok');
+  addLog('PANEL', 'Ticker actualizado', 'ok');
+}
+
+async function loadTickerConfig() {
+  initTicker();
+  try {
+    const snap = await DB.ref(`sys/${syncCode}/ticker`).once('value');
+    if (snap.exists()) {
+      const data = snap.val();
+      // Formato nuevo: { lunes:[{text,dur}], ...}
+      // Formato viejo: { messages:{lunes:[{msg,dur}]}, ...}
+      const msgs = data.messages || data;
+      TICKER_DAYS.forEach(d => {
+        if (msgs[d] && Array.isArray(msgs[d])) {
+          TICKER[d] = msgs[d].map(m => ({ msg: m.text || m.msg || '', dur: m.dur || 8 }));
+        }
+      });
+      if (data.weatherCity) sv('weather-city', data.weatherCity);
+      if (data.weatherMsg)  sv('weather-msg',  data.weatherMsg);
+    }
+  } catch(e) { console.warn('loadTicker:', e); }
+  renderTickerMsgs();
+  updateTickerPreview();
+}
+
+// ══ EVENTOS ESPECIALES ════════════════════════════════════════════════
+const BUILT_IN_EVENTS = [
+  {id:'navidad',   name:'Navidad',         emoji:'🎄', from:'12/12', to:'06/01', msg:'🎄 FELIZ NAVIDAD · OS DESEAMOS LO MEJOR', effect:'snow'},
+  {id:'reyes',     name:'Reyes Magos',     emoji:'👑', from:'02/01', to:'06/01', msg:'👑 FELICES REYES MAGOS', effect:'stars'},
+  {id:'sanvalentin',name:'San Valentín',   emoji:'❤️',  from:'10/02', to:'14/02', msg:'❤️ FELIZ SAN VALENTÍN · CELEBRA CON NOSOTROS', effect:'hearts'},
+  {id:'semana-santa',name:'Semana Santa',  emoji:'✝️',  from:'01/04', to:'20/04', msg:'🌸 FELIZ SEMANA SANTA', effect:'none'},
+  {id:'verano',    name:'Verano',          emoji:'☀️',  from:'21/06', to:'22/09', msg:'☀️ ¡BIENVENIDO EL VERANO! · REFRÉSCATE CON NOSOTROS', effect:'sun'},
+  {id:'halloween', name:'Halloween',       emoji:'🎃', from:'25/10', to:'31/10', msg:'🎃 FELIZ HALLOWEEN · ¡ATRÉVETE A JUGAR!', effect:'none'},
+  {id:'nochevieja',name:'Nochevieja',      emoji:'🎆', from:'28/12', to:'01/01', msg:'🎆 FELIZ AÑO NUEVO · ¡CELEBRA CON NOSOTROS!', effect:'fireworks'},
+];
+
+let EVENTS_CONFIG = {}; // {eventId: {enabled, customMsg}}
+
+function isEventActive(ev) {
+  const now = new Date();
+  const [fd, fm] = ev.from.split('/').map(Number);
+  const [td, tm] = ev.to.split('/').map(Number);
+  const d = now.getDate(), m = now.getMonth()+1;
+  const fromN = fm*100+fd, toN = tm*100+td, nowN = m*100+d;
+  if (fromN <= toN) return nowN >= fromN && nowN <= toN;
+  return nowN >= fromN || nowN <= toN; // cruza año nuevo
+}
+
+function renderEvents() {
+  const grid = ge('event-grid');
+  const allEvents = [...BUILT_IN_EVENTS, ...(EVENTS_CONFIG._custom || [])];
+
+  grid.innerHTML = allEvents.map(ev => {
+    const active  = isEventActive(ev);
+    const enabled = EVENTS_CONFIG[ev.id]?.enabled ?? true;
+    const isOn    = active && enabled;
+    const isCustom = ev.custom === true;
+    const effect  = ev.effect || EVENTS_CONFIG[ev.id]?.effect || 'none';
+
+    const effectSelector = `<div style="margin-top:8px">
+      <select class="inp sm" style="font-size:10px;padding:4px 8px"
+        onchange="setEventEffect('${ev.id}',this.value)">
+        <option value="none"     ${effect==='none'    ?'selected':''}>Sin efecto</option>
+        <option value="coins"    ${effect==='coins'   ?'selected':''}>🪙 Monedas</option>
+        <option value="stars"    ${effect==='stars'   ?'selected':''}>⭐ Estrellas</option>
+        <option value="snow"     ${effect==='snow'    ?'selected':''}>❄️ Nieve</option>
+        <option value="hearts"   ${effect==='hearts'  ?'selected':''}>💕 Corazones</option>
+        <option value="fireworks"${effect==='fireworks'?'selected':''}>🎆 Fuegos</option>
+        <option value="skulls"   ${effect==='skulls'  ?'selected':''}>💀 Calaveras</option>
+      </select>
+    </div>`;
+
+    const deleteBtn = isCustom
+      ? `<button class="abtn btn-sm danger" style="margin-top:8px;width:100%"
+           onclick="deleteCustomEvent('${ev.id}')">✕ Eliminar</button>`
+      : '';
+
+    return `<div class="ecard${isOn?' on':''}">
+      ${isOn?'<div class="ecard-badge">ACTIVO AHORA</div>':''}
+      <span class="ecard-icon">${ev.emoji}</span>
+      <div class="ecard-name">${esc(ev.name)}</div>
+      <div class="ecard-dates">${ev.from} — ${ev.to}</div>
+      <div class="sw-row">
+        <button class="sw${enabled?' on':''}" onclick="toggleEvent('${ev.id}',this)"
+          title="${enabled?'Desactivar':'Activar'}"></button>
+        <span>${enabled?'Activado':'Desactivado'}</span>
+      </div>
+      ${effectSelector}
+      ${deleteBtn}
+      ${active?`<div style="font-family:var(--fm);font-size:10px;color:var(--green);margin-top:6px">✓ En fechas activas</div>`:''}
+    </div>`;
+  }).join('');
+}
+
+function toggleEvent(id, btn) {
+  if (!EVENTS_CONFIG[id]) EVENTS_CONFIG[id] = {enabled:true};
+  EVENTS_CONFIG[id].enabled = !EVENTS_CONFIG[id].enabled;
+  btn.classList.toggle('on', EVENTS_CONFIG[id].enabled);
+  btn.nextElementSibling.textContent = EVENTS_CONFIG[id].enabled ? 'Activado' : 'Desactivado';
+  saveEventsConfig();
+  renderEvents();
+}
+
+async function setEventEffect(id, effect) {
+  // Para eventos builtin guardamos en EVENTS_CONFIG
+  if (!EVENTS_CONFIG[id]) EVENTS_CONFIG[id] = {enabled:true};
+  EVENTS_CONFIG[id].effect = effect;
+  // Para eventos custom actualizamos también el objeto en _custom
+  if (EVENTS_CONFIG._custom) {
+    const ev = EVENTS_CONFIG._custom.find(e => e.id === id);
+    if (ev) ev.effect = effect;
+  }
+  await saveEventsConfig();
+  toast('Efecto guardado ✓','ok');
+}
+
+async function deleteCustomEvent(id) {
+  if (!confirm('¿Eliminar este evento personalizado?')) return;
+  if (!EVENTS_CONFIG._custom) return;
+  EVENTS_CONFIG._custom = EVENTS_CONFIG._custom.filter(e => e.id !== id);
+  await saveEventsConfig();
+  renderEvents();
+  toast('Evento eliminado','info');
+}
+
+async function saveCustomEvent() {
+  const name   = gv('ev-name').trim();
+  const emoji  = gv('ev-emoji').trim() || '🎉';
+  const from   = gv('ev-from').trim();
+  const to     = gv('ev-to').trim();
+  const msg    = gv('ev-msg').trim();
+  const effect = gv('ev-effect') || 'none';
+
+  if (!name||!from||!to) { toast('Rellena nombre y fechas','warn'); return; }
+
+  const newEv = {id:'custom_'+Date.now(), name, emoji, from, to, msg, effect, custom:true};
+  if (!EVENTS_CONFIG._custom) EVENTS_CONFIG._custom = [];
+  EVENTS_CONFIG._custom.push(newEv);
+  await saveEventsConfig();
+  renderEvents();
+  toast(`Evento "${name}" creado ✓`,'ok');
+  ['ev-name','ev-emoji','ev-from','ev-to','ev-msg'].forEach(id=>{const e=ge(id);if(e)e.value='';});
+  ge('ev-effect').value = 'none'; // reset selector
+}
+
+async function saveEventsConfig() {
+  await DB.ref(`sys/${syncCode}/events`).set(EVENTS_CONFIG);
+}
+
+async function loadEventsConfig() {
+  try {
+    const snap = await DB.ref(`sys/${syncCode}/events`).once('value');
+    if (snap.exists()) EVENTS_CONFIG = snap.val() || {};
+  } catch(e) { console.warn('loadEvents:', e); }
+  renderEvents();
+}
+
+// ══ SPONSORS ══════════════════════════════════════════════════════════
+let SPONSORS = [];
+
+function initSponsorsUI() {
+  // Preview en tiempo real
+  const msgInp = ge('sp-msg');
+  if (msgInp) msgInp.addEventListener('input', () => {
+    const txt = msgInp.value || '← escribe el mensaje para ver la previsualización →';
+    const col = ge('sp-color').value || '#ffcc00';
+    ge('sp-preview-txt').textContent = txt;
+    ge('sp-preview-txt').style.color = col;
+  });
+  ge('sp-color').addEventListener('input', () => {
+    ge('sp-preview-txt').style.color = ge('sp-color').value;
+  });
+
+  // Toggle días
+  document.querySelectorAll('.sp-day').forEach(el => {
+    el.onclick = () => el.classList.toggle('on');
+  });
+  // Toggle franjas
+  document.querySelectorAll('.sp-franja').forEach(el => {
+    el.onclick = () => el.classList.toggle('on');
+  });
+}
+
+async function loadSponsors() {
+  try {
+    const snap = await DB.ref(`sys/${syncCode}/sponsors`).once('value');
+    SPONSORS = [];
+    if (snap.exists()) snap.forEach(c => { SPONSORS.push({id:c.key,...c.val()}); return false; });
+    renderSponsors();
+  } catch(e) { console.warn('loadSponsors:', e); renderSponsors(); }
+  initSponsorsUI();
+}
+
+function renderSponsors() {
+  const list = ge('sp-list');
+  if (!SPONSORS.length) {
+    list.innerHTML = '<div class="empty"><p>No hay sponsors todavía. Añade el primero abajo.</p></div>';
+    return;
+  }
+  list.innerHTML = SPONSORS.map(sp => {
+    const active = sp.active !== false;
+    const dias   = (sp.days  || []).join(', ') || 'Todos los días';
+    const franjas = (sp.franjas || []).map(f => ({manana:'Mañana',mediodia:'Mediodía',tarde:'Tarde',noche:'Noche'}[f]||f)).join(', ') || 'Todas las franjas';
+    return `<div class="sp-item ${active?'':'inactive'}">
+      <div class="sp-body">
+        <div class="sp-name">${esc(sp.name||'Sin nombre')}</div>
+        <div class="sp-msg" style="color:${sp.color||'#ffcc00'}">${esc(sp.msg||'')}</div>
+        <div class="sp-meta">
+          <span class="sp-tag">📅 ${esc(dias)}</span>
+          <span class="sp-tag">🕐 ${esc(franjas)}</span>
+          <span class="sp-tag" style="color:${active?'var(--green)':'var(--text3)'}">${active?'✓ Activo':'Pausado'}</span>
+        </div>
+      </div>
+      <div class="sp-ctrls">
+        <button class="abtn btn-sm" onclick="toggleSponsor('${sp.id}')">${active?'⏸ Pausar':'▶ Activar'}</button>
+        <button class="abtn btn-sm danger" onclick="deleteSponsor('${sp.id}','${esc(sp.name||'')}')">✕ Borrar</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function saveSponsor() {
+  const name = gv('sp-name').trim();
+  const msg  = gv('sp-msg').trim();
+  if (!name) { toast('Introduce el nombre del sponsor','warn'); return; }
+  if (!msg)  { toast('Escribe el mensaje del ticker','warn'); return; }
+
+  const days    = [...document.querySelectorAll('.sp-day.on')].map(el => el.dataset.day);
+  const franjas = [...document.querySelectorAll('.sp-franja.on')].map(el => el.dataset.fr);
+  const color   = ge('sp-color').value || '#ffcc00';
+
+  if (!days.length)    { toast('Selecciona al menos un día','warn'); return; }
+  if (!franjas.length) { toast('Selecciona al menos una franja','warn'); return; }
+
+  const sid = 'sp_' + Date.now();
+  const data = { name, msg, color, days, franjas, active: true, created: Date.now() };
+
+  try {
+    await DB.ref(`sys/${syncCode}/sponsors/${sid}`).set(data);
+    toast(name + ' añadido ✓', 'ok');
+    addLog('PANEL', 'Sponsor añadido: ' + name, 'ok');
+    // Limpiar formulario
+    ge('sp-name').value = '';
+    ge('sp-msg').value  = '';
+    ge('sp-preview-txt').textContent = '← escribe el mensaje para ver la previsualización →';
+    // Reset días y franjas a todos activos
+    document.querySelectorAll('.sp-day,.sp-franja').forEach(el => el.classList.add('on'));
+    loadSponsors();
+  } catch(e) { toast('Error: ' + e.message, 'err'); }
+}
+
+async function toggleSponsor(sid) {
+  const sp = SPONSORS.find(s => s.id === sid);
+  if (!sp) return;
+  const newState = sp.active === false ? true : false;
+  await DB.ref(`sys/${syncCode}/sponsors/${sid}/active`).set(newState);
+  toast(sp.name + (newState ? ' activado' : ' pausado'), 'info');
+  loadSponsors();
+}
+
+async function deleteSponsor(sid, name) {
+  if (!confirm('¿Borrar el sponsor "' + name + '"?')) return;
+  await DB.ref(`sys/${syncCode}/sponsors/${sid}`).remove();
+  toast('Sponsor borrado', 'info');
+  addLog('PANEL', 'Sponsor borrado: ' + name, 'warn');
+  loadSponsors();
+}
+
+// ══ ESTADÍSTICAS ══════════════════════════════════════════════════════
+async function loadStats() {
+  const el = ge('stats-detail');
+  el.innerHTML = '<div class="empty"><p>Cargando...</p></div>';
+
+  try {
+    const screensSnap = await DB.ref(`sys/${syncCode}/screens`).once('value');
+    const screens = screensSnap.val() || {};
+    const statsSnap = await DB.ref(`sys/${syncCode}/screen_stats`).once('value');
+    const stats = statsSnap.val() || {};
+
+    const keys = Object.keys(screens);
+    if (!keys.length) {
+      el.innerHTML = '<div class="empty"><p>No hay pantallas conectadas todavía.</p></div>';
+      return;
+    }
+
+    el.innerHTML = keys.map(sid => {
+      const sc = screens[sid];
+      const st = stats[sid] || {};
+      const online = sc.lastSeen && (Date.now()-sc.lastSeen) < 120000;
+      const longOff = sc.lastSeen && (Date.now()-sc.lastSeen) > 3600000;
+      const dot = longOff?'warn':online?'ok':'off';
+      const hoursOn = st.totalMinutes ? Math.round(st.totalMinutes/60) : 0;
+      const lastContent = st.lastPlaying || 'Sin datos';
+      const uptimePct = st.totalMinutes ? Math.min(100, Math.round(st.totalMinutes/(24*60)*100)) : 0;
+
+      return `<div class="stat-card">
+        <div class="stat-card-t">${esc(sc.name||'Pantalla')}</div>
+        <div class="ssi">
+          <div class="ssi-dot ${dot}"></div>
+          <div class="ssi-info">
+            <div class="ssi-name">${online?'🟢 Online ahora':'🔴 Offline'}</div>
+            <div class="ssi-det">Último contacto: ${sc.lastSeen?timeAgo(sc.lastSeen):'nunca'}</div>
+          </div>
+          <div class="ssi-h">${hoursOn}h</div>
+        </div>
+        <div class="abar"><div class="abar-fill" style="width:${uptimePct}%"></div></div>
+        <div style="font-family:var(--fm);font-size:10px;color:var(--text3);margin-top:4px">${uptimePct}% uptime hoy</div>
+        <div class="now-p">▶ Reproduciendo: <strong>${esc(lastContent)}</strong></div>
+        ${longOff?`<div style="background:#ff6b0015;border:1px solid #ff6b0033;padding:7px 10px;font-family:var(--fm);font-size:10px;color:var(--accent2);margin-top:8px">⚠ Sin conexión más de 1 hora — ¿está encendida?</div>`:''}
+      </div>`;
+    }).join('');
+
+    // Historial
+    const histEl = ge('stats-history');
+    const logSnap = await DB.ref(`sys/${syncCode}/log`).limitToLast(30).once('value');
+    if (logSnap.exists()) {
+      const entries = [];
+      logSnap.forEach(c => { entries.unshift(c.val()); return false; });
+      histEl.innerHTML = entries.map(e => `
+        <div class="log-item">
+          <span class="log-t">${new Date(e.ts||0).toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'})}</span>
+          <span class="log-s">${esc(e.screen||'?')}</span>
+          <span class="log-m">${esc(e.msg||'')}</span>
+          <span class="log-i ${e.type||'info'}">${{ok:'✓',warn:'⚠',err:'✕',info:'·'}[e.type]||'·'}</span>
+        </div>`).join('');
+    } else {
+      histEl.innerHTML = '<div style="padding:16px;font-family:var(--fm);font-size:11px;color:var(--text3);text-align:center">Sin historial todavía</div>';
+    }
+
+  } catch(e) { el.innerHTML = `<div class="empty"><p>Error: ${e.message}</p></div>`; }
+}
+
+async function clearStats() {
+  if (!confirm('¿Limpiar todo el historial de estadísticas?')) return;
+  await DB.ref(`sys/${syncCode}/screen_stats`).remove();
+  await DB.ref(`sys/${syncCode}/log`).remove();
+  toast('Estadísticas limpiadas','info');
+  loadStats();
+}
+function goPage(name){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));
+  document.querySelectorAll('.tnav').forEach(t=>t.classList.remove('on'));
+  ge('page-'+name).classList.add('on');
+  const idx={contenido:0,galerias:1,horarios:2,ticker:3,sponsors:4,eventos:5,pantallas:6,urgente:7,stats:8,log:9,ajustes:10}[name];
+  const navs=document.querySelectorAll('.tnav');
+  if(navs[idx])navs[idx].classList.add('on');
+  // Pequeño delay para que el DOM sea visible antes de renderizar
+  setTimeout(() => {
+    if(name==='log')      renderLog();
+    if(name==='sponsors') loadSponsors();
+    if(name==='stats')    loadStats();
+    if(name==='ticker')   loadTickerConfig();
+    if(name==='eventos')  loadEventsConfig();
+    if(name==='pantallas'){ loadScreens(); renderScreens(); }
+    if(name==='galerias') renderGalleries();
+  }, 50);
+}
+</script>
+</body>
+</html>
