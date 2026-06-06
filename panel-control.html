@@ -2424,19 +2424,25 @@ function copyTickerToAll() {
 }
 
 async function saveTickerConfig() {
-  // La TV espera: { lunes:[{text,dur}], martes:[], ..., weatherCity, weatherMsg }
-  // Convertir desde TICKER que usa { msg, dur } → { text, dur }
-  const config = {};
-  TICKER_DAYS.forEach(d => {
-    config[d] = (TICKER[d] || []).map(m => ({ text: m.msg || m.text || '', dur: m.dur || 8 }));
-  });
-  config.weatherCity = gv('weather-city').trim() || 'Almeria';
-  config.weatherMsg  = gv('weather-msg').trim()  || 'Fuera hace {temp}°C';
-  config.updatedAt   = Date.now();
+  try {
+    const config = {};
+    TICKER_DAYS.forEach(d => {
+      config[d] = (TICKER[d] || []).map(m => ({ text: m.msg || m.text || '', dur: m.dur || 8 }));
+    });
+    const weatherCity = ge('weather-city') ? gv('weather-city').trim() : 'Almeria';
+    const weatherMsg  = ge('weather-msg')  ? gv('weather-msg').trim()  : 'Fuera hace {temp}°C';
+    config.weatherCity = weatherCity || 'Almeria';
+    config.weatherMsg  = weatherMsg  || 'Fuera hace {temp}°C';
+    config.updatedAt   = Date.now();
 
-  await DB.ref(`sys/${syncCode}/ticker`).set(config);
-  toast('Ticker guardado ✓', 'ok');
-  addLog('PANEL', 'Ticker actualizado', 'ok');
+    console.log('[ticker] Guardando:', JSON.stringify(config).substring(0, 200));
+    await DB.ref(`sys/${syncCode}/ticker`).set(config);
+    toast('Ticker guardado ✓', 'ok');
+    addLog('PANEL', 'Ticker actualizado', 'ok');
+  } catch(e) {
+    console.error('[ticker] Error guardando:', e);
+    toast('Error al guardar ticker: ' + e.message, 'err');
+  }
 }
 
 async function loadTickerConfig() {
