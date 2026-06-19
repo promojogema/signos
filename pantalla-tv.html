@@ -58,7 +58,7 @@
 
     /* ── PLAYER ────────────────────────────────────── */
     #player{display:none;position:fixed;inset:0;background:#000;}
-    #vid,#img{
+    #vid,#img,#img2{
       position:absolute;inset:0;width:100%;height:100%;
       object-fit:cover;opacity:0;transition:opacity .9s ease-in-out;
     }
@@ -182,7 +182,8 @@
 <!-- PLAYER -->
 <div id="player">
   <video id="vid" playsinline></video>
-  <img   id="img" draggable="false" alt="">
+  <img   id="img"  draggable="false" alt="">
+  <img   id="img2" draggable="false" alt="" style="z-index:1">
   <audio id="aud" style="display:none"></audio>
 </div>
 
@@ -191,6 +192,18 @@
   <div id="urg-icon">🚨</div>
   <div id="urg-title">ATENCIÓN</div>
   <div id="urg-timer"></div>
+</div>
+
+<!-- MANTENIMIENTO -->
+<div id="maintenance-overlay" style="
+  display:none;position:fixed;inset:0;z-index:950;background:#0a0a0a;
+  flex-direction:column;align-items:center;justify-content:center;text-align:center">
+  <div style="font-size:48px;margin-bottom:16px">🛠️</div>
+  <div class="maint-msg" style="
+    font-family:'Arial Black',sans-serif;font-size:28px;font-weight:900;
+    color:#ffcc00;letter-spacing:-1px;max-width:80%">Volvemos enseguida</div>
+  <div style="font-family:'Courier New',monospace;font-size:11px;color:#444;
+    margin-top:20px;letter-spacing:.2em">SIGN.OS · MANTENIMIENTO</div>
 </div>
 
 <!-- TICKER -->
@@ -540,6 +553,18 @@ async function idbGetAll(store) {
 // Descargar un archivo de Cloudinary y guardarlo como blob
 async function cacheFile(file) {
   try {
+    // Red de seguridad: límite de descarga diaria por TV para nunca
+    // volver a disparar la cuota de Cloudinary aunque algo vaya mal
+    const today = new Date().toISOString().slice(0,10);
+    const usageKey = 'cache_usage_' + today;
+    let usage = parseFloat(localStorage.getItem(usageKey) || '0');
+    const fileMB = (file.size || 0) / 1024 / 1024;
+    const DAILY_LIMIT_MB = 500; // tope de seguridad por TV y día
+    if (usage + fileMB > DAILY_LIMIT_MB) {
+      console.warn(`[cache] Límite diario alcanzado (${usage.toFixed(0)}MB) — usando streaming para`, file.name);
+      return file.url;
+    }
+
     const cached = await idbGet(IDB_FILES, file.id);
     // Si ya está cacheado y no cambió, usar el local
     if (cached && cached.updatedAt >= (file.uploaded || 0)) {
@@ -551,9 +576,11 @@ async function cacheFile(file) {
     if (!resp.ok) throw new Error('HTTP ' + resp.status);
     const blob = await resp.blob();
     const blobUrl = URL.createObjectURL(blob);
+
+    // Contabilizar consumo del día
+    localStorage.setItem(usageKey, (usage + fileMB).toFixed(2));
+
     // Guardar en IndexedDB
-    // Guardar el blob Y la originalUrl para offline real
-    // pero al reproducir siempre usar originalUrl
     await idbPut(IDB_FILES, {
       id: file.id,
       name: file.name,
@@ -630,15 +657,22 @@ async function saveToCache() {
 }
 
 // Descargar en background los archivos COMÚN que no están en caché
+// Reactivado: ahora applyCachedUrls() SÍ usa el blob descargado al reproducir,
+// así que cada archivo solo se descarga UNA vez de Cloudinary por TV.
+const CACHE_DOWNLOAD_ENABLED = true;
+const MAX_CACHE_FILE_MB = 60; // no cachear vídeos enormes — se sirven en streaming
+
 async function syncCommonFiles() {
-  if (!_idb) return;
+  if (!CACHE_DOWNLOAD_ENABLED || !_idb) {
+    console.log('[sync] Caché desactivada o IndexedDB no disponible');
+    return;
+  }
   const commonIds = new Set(_assignments['common'] || []);
-  // Solo cachear fotos y música — los vídeos se sirven directamente desde Cloudinary
-  // sin descargar (son demasiado grandes y saturan el ancho de banda)
   const toSync = Object.values(_allFilesMap).filter(f => {
     if (!commonIds.has(f.id)) return false;
-    const type = f.type || '';
-    return type.startsWith('image/') || type.startsWith('audio/');
+    const sizeMB = (f.size || 0) / 1024 / 1024;
+    if (sizeMB > MAX_CACHE_FILE_MB) return false; // demasiado grande, no cachear
+    return true;
   });
   if (!toSync.length) return;
 
@@ -647,19 +681,26 @@ async function syncCommonFiles() {
     if (el) el.textContent = msg;
   };
 
-  console.log(`[sync] Sincronizando ${toSync.length} archivos COMÚN...`);
-  let synced = 0;
+  // Filtrar solo los que realmente faltan o cambiaron (evita re-descargar todo)
+  const pending = [];
   for (const file of toSync) {
-    setSyncMsg(`Descargando ${synced + 1}/${toSync.length}: ${file.name}`);
-    const blobUrl = await cacheFile(file);
-    if (_filesMap[file.id]) _filesMap[file.id].url = blobUrl;
-    if (_allFilesMap[file.id]) _allFilesMap[file.id]._blobUrl = blobUrl;
+    const cached = await idbGet(IDB_FILES, file.id);
+    if (!cached || cached.updatedAt < (file.uploaded || 0)) pending.push(file);
+  }
+  if (!pending.length) { console.log('[sync] Todo ya está en caché ✓'); return; }
+
+  console.log(`[sync] Descargando ${pending.length} archivos nuevos/cambiados (de ${toSync.length} comunes)...`);
+  let synced = 0;
+  for (const file of pending) {
+    setSyncMsg(`Descargando ${synced + 1}/${pending.length}: ${file.name}`);
+    await cacheFile(file);
     synced++;
   }
 
   setSyncMsg('');
-  console.log(`[sync] ✓ ${synced} archivos sincronizados`);
+  console.log(`[sync] ✓ ${synced} archivos nuevos cacheados`);
   await saveToCache();
+  await applyCachedUrls();
   buildPlaylist();
 }
 
@@ -769,7 +810,6 @@ window.addEventListener('offline', () => {
 // Construir _filesMap con solo los archivos asignados a esta sala
 function applyAssignments() {
   const myRoom = screenName.toLowerCase().replace(/\s+/g,'_');
-  // IDs asignados a COMÚN + IDs asignados a nuestra sala
   const commonIds = new Set(_assignments['common'] || []);
   const roomIds   = new Set(_assignments[screenId] || _assignments[myRoom] || []);
   const myIds     = new Set([...commonIds, ...roomIds]);
@@ -778,19 +818,37 @@ function applyAssignments() {
   myIds.forEach(id => {
     if (_allFilesMap[id]) {
       const f = { ..._allFilesMap[id] };
-      // Usar siempre URL directa de Cloudinary/Firebase
-      // Nunca usar blobUrls que expiran al cerrar el navegador
+      // Por defecto usar la URL remota; se sustituirá por blob local
+      // en applyCachedUrls() si existe una copia válida en IndexedDB
       if (f._originalUrl) f.url = f._originalUrl;
       if (!f.url || f.url.startsWith('blob:')) {
         console.warn('[assign] URL no disponible para:', f.name);
-        return; // no incluir archivos sin URL válida
+        return;
       }
       _filesMap[id] = f;
     }
   });
 
   console.log(`[assignments] común:${commonIds.size} sala:${roomIds.size} total:${Object.keys(_filesMap).length}`);
+  // Sustituir por URLs de caché local si existen (evita re-streaming innecesario)
+  applyCachedUrls().then(() => { if (_plLoaded) buildPlaylist(); });
   if (_plLoaded) buildPlaylist();
+}
+
+// Revisa IndexedDB y sustituye, archivo por archivo, la URL remota
+// por el blob local si ya está descargado y sigue siendo válido.
+async function applyCachedUrls() {
+  if (!_idb) return;
+  for (const id of Object.keys(_filesMap)) {
+    try {
+      const cached = await idbGet(IDB_FILES, id);
+      if (cached && cached.blob && cached.updatedAt >= (_filesMap[id].uploaded || 0)) {
+        const blobUrl = URL.createObjectURL(cached.blob);
+        _filesMap[id].url = blobUrl;
+        _filesMap[id]._cached = true;
+      }
+    } catch(e) { /* sin caché para este archivo, se queda con la URL remota */ }
+  }
 }
 
 function buildPlaylist() {
@@ -893,12 +951,26 @@ function resetVid() {
   try { v.load(); } catch(e) {}  // libera el recurso de red
 }
 
+// Registro de blob URLs activas para poder revocarlas y liberar memoria
+const _activeBlobUrls = new Set();
+
 function resetImg() {
   const i = ge('img');
-  i.onload        = null;
-  i.onerror       = null;
+  const i2 = ge('img2');
+  // Revocar blob URLs anteriores para liberar memoria del navegador
+  if (i.src && i.src.startsWith('blob:')) {
+    URL.revokeObjectURL(i.src);
+    _activeBlobUrls.delete(i.src);
+  }
+  if (i2.src && i2.src.startsWith('blob:')) {
+    URL.revokeObjectURL(i2.src);
+    _activeBlobUrls.delete(i2.src);
+  }
+  i.onload = i.onerror = null;
   i.style.opacity = 0;
   i.removeAttribute('src');
+  i2.style.opacity = 0;
+  i2.removeAttribute('src');
 }
 
 // Detecta el tipo de un ítem: primero por item.type, luego por extensión de URL
@@ -992,8 +1064,7 @@ function playItem(idx) {
   resetVid();
   resetImg();
   lastActivity = Date.now();
-
-  // Validar URL — rechazar vacías, undefined, y blob:null (blobs de sesión anterior)
+  _consecutiveSkips = 0; // reproducción OK — resetear contador — rechazar vacías, undefined, y blob:null (blobs de sesión anterior)
   const urlOk = item?.url &&
     item.url !== 'undefined' &&
     !item.url.startsWith('blob:null') &&
@@ -1005,6 +1076,7 @@ function playItem(idx) {
       item.url = item._originalUrl;
     } else {
       console.warn('[player] URL no válida, saltando:', item?.name, item?.url);
+      _consecutiveSkips = (_consecutiveSkips || 0) + 1;
       playTimer = setTimeout(nextItem, 300);
       return;
     }
@@ -1057,15 +1129,39 @@ function playItem(idx) {
     vid.style.opacity = 0; vid.pause(); vid.removeAttribute('src');
     aud.pause();
 
+    // Crossfade suave: ocultar la imagen actual antes de mostrar la nueva
+    const imgEl = ge('img');
+    const img2El = ge('img2');
+    // Usar img2 como buffer — cuando cargue hacemos crossfade
     const tmp = new Image();
+    // Optimizar URL de Cloudinary para servir en resolución TV (1280px)
+    // y formato WebP si el navegador lo soporta — reduce consumo sin perder calidad visual
+    const optimizedUrl = optimizeCloudinaryUrl(item.url);
     tmp.onload = () => {
-      img.src = item.url;
-      img.style.opacity = 1;
+      // Crossfade: img2 carga la nueva imagen mientras img sigue visible
+      img2El.src = optimizedUrl;
+      img2El.style.opacity = 1;   // nueva imagen aparece suavemente
+      img.style.opacity  = 0;     // imagen anterior se desvanece
+      // Tras la transición (1s) intercambiar roles para el próximo crossfade
+      setTimeout(() => {
+        img.src = optimizedUrl;
+        img.style.opacity  = 1;
+        img2El.style.opacity = 0;
+        img2El.removeAttribute('src');
+      }, 1000);
       clearTimeout(playTimer);
       playTimer = setTimeout(nextItem, (item.duration || 8) * 1000);
     };
-    tmp.onerror = () => { nextItem(); };
-    tmp.src = item.url;
+    tmp.onerror = () => {
+      // Si la URL optimizada falla, intentar con la original
+      if (optimizedUrl !== item.url) {
+        const tmp2 = new Image();
+        tmp2.onload = () => { img.src = item.url; img.style.opacity = 1; clearTimeout(playTimer); playTimer = setTimeout(nextItem, (item.duration || 8) * 1000); };
+        tmp2.onerror = () => nextItem();
+        tmp2.src = item.url;
+      } else { nextItem(); }
+    };
+    tmp.src = optimizedUrl;
 
   } else if (kind === 'audio') {
     // Audio en la lista visual — simplemente saltar (la música ya suena en MUSIC_EL)
@@ -1077,13 +1173,39 @@ function playItem(idx) {
   }
 }
 
+// Optimizar URLs de Cloudinary para servir fotos a resolución TV
+// sin descargar la imagen original de alta resolución (ahorra ancho de banda)
+function optimizeCloudinaryUrl(url) {
+  if (!url || !url.includes('res.cloudinary.com')) return url;
+  // Insertar transformaciones: w_1280 (ancho máx TV), q_auto (calidad auto), f_auto (formato óptimo)
+  // Solo para imágenes, no para vídeos
+  if (url.includes('/video/upload/')) return url;
+  if (url.includes('/image/upload/')) {
+    return url.replace('/image/upload/', '/image/upload/w_1280,q_auto,f_auto/');
+  }
+  return url;
+}
+
 function nextItem() {
   clearTimeout(playTimer);
   resetVid();
   resetImg();
   lastActivity = Date.now();
+  _consecutiveSkips = 0;
   curIdx = (curIdx + 1) % Math.max(1, PLAYLIST.length);
-  // Solo parar música si el siguiente bloque tiene su propia canción
+
+  // Precarga segura del siguiente archivo — solo fotos, no vídeos
+  // Así cuando llegue su turno ya está en caché del navegador
+  const preloadIdx = (curIdx + 1) % Math.max(1, PLAYLIST.length);
+  if (PLAYLIST[preloadIdx]) {
+    const nextFile = PLAYLIST[preloadIdx];
+    if (detectType(nextFile) === 'image' && nextFile.url && !nextFile.url.startsWith('blob:null')) {
+      const pre = new Image();
+      pre.src = optimizeCloudinaryUrl(nextFile.url);
+      // Solo precarga — no hacemos nada con el resultado
+    }
+  }
+
   const next = PLAYLIST[curIdx];
   if (next && next._bgMusic) stopAllMusic();
   playItem(curIdx);
@@ -1271,6 +1393,21 @@ function hideUrgent() {
 // COMANDOS REMOTOS
 // ════════════════════════════════════════════════════
 function listenCommands() {
+  // Pantalla de mantenimiento
+  DB.ref(`sys/${sysCode}/maintenance`).on('value', snap => {
+    const maint = snap.val();
+    const overlay = ge('maintenance-overlay');
+    if (!overlay) return;
+    if (maint && maint.active) {
+      overlay.querySelector('.maint-msg').textContent = maint.msg || 'Volvemos enseguida';
+      overlay.style.display = 'flex';
+      _watchdogPaused = true;
+    } else {
+      overlay.style.display = 'none';
+      _watchdogPaused = false;
+    }
+  });
+
   // Comando por pantalla
   DB.ref(`sys/${sysCode}/commands/${screenId}`).on('value', snap => {
     if (!snap.exists()) return;
@@ -1508,26 +1645,54 @@ async function fetchWeather() {
 }
 
 // ════════════════════════════════════════════════════
-// WATCHDOG
+// WATCHDOG — Estabilidad mejorada
 // ════════════════════════════════════════════════════
 let lastActivity = Date.now();
+let _watchdogPaused = false;
+
+// 1. Capturar errores JS y recargar tras 8s
 window.onerror = (msg, src, line, col) => {
   console.error('[CRASH]', msg, '@', line + ':' + col);
   setTimeout(() => location.reload(), 8000);
 };
+
+// 2. Watchdog: si lleva más de 90s sin actividad → recargar
+//    (antes era 150s — lo reducimos para detectar cuelgues antes)
 setInterval(() => {
-  if (isPlaying && Date.now() - lastActivity > 150000) {
-    console.warn('[watchdog] Sin actividad 2.5min — recargando');
+  if (_watchdogPaused) return;
+  const elapsed = Date.now() - lastActivity;
+  if (isPlaying && elapsed > 90000) {
+    console.warn('[watchdog] Sin actividad ' + Math.round(elapsed/1000) + 's — recargando');
     location.reload();
   }
-}, 30000);
+}, 15000); // comprobar cada 15s en vez de 30s
+
+// 3. Reconexión automática — ya gestionada en el listener online/offline de arriba (línea ~768)
+// El listener existente ya re-sincroniza Firebase al recuperar conexión
+
+// 4. Heartbeat visual — el punto verde parpadea cada 2s
+//    para que el operario sepa que la TV está viva
+setInterval(() => {
+  const dot = ge('status-dot');
+  if (!dot) return;
+  dot.style.opacity = dot.style.opacity === '0.3' ? '1' : '0.3';
+}, 2000);
+
+// 5. Si llevan 5 minutos sin poder cargar ningún archivo → recargar
+let _consecutiveSkips = 0;
+const _origNextItem = nextItem;
+// Override nextItem para contar saltos consecutivos
+// Si salta más de 20 veces seguidas sin reproducir nada → watchdog
+const _skipWatchdog = setInterval(() => {
+  if (_consecutiveSkips > 20) {
+    console.warn('[watchdog] Demasiados saltos consecutivos (' + _consecutiveSkips + ') — recargando');
+    location.reload();
+  }
+  _consecutiveSkips = 0; // resetear contador cada minuto
+}, 60000);
 
 // Actualizar lastActivity cuando haya actividad real
-const _origPlayItem = playItem;
-
-// Indicador online/offline
-// Status dot online/offline ya gestionado en listenFiles
-window.addEventListener('resize',  () => {
+window.addEventListener('resize', () => {
   const cv = ge('fx-canvas');
   if (fxActive) { cv.width = window.innerWidth; cv.height = window.innerHeight; }
 });

@@ -1260,7 +1260,7 @@ function fixTypesInFirebase() {
 }
 
 // ══ CLOUDINARY DIRECT UPLOAD ══════════════════════════════════════════
-const CL_CLOUD  = 'dwcq1ii0h';
+const CL_CLOUD  = 'dn5m9waqz';
 const CL_PRESET = 'panel_tv';
 
 // Cola de archivos pendientes
@@ -2159,15 +2159,25 @@ function renderScreens(){
   if(!keys.length){grid.innerHTML='<div class="empty" style="grid-column:1/-1"><p>No hay pantallas todavía.<br>Genera un código arriba y conéctala.</p></div>';return;}
   grid.innerHTML=keys.map(sid=>{
     const sc=SCREENS[sid];
-    const online=sc.lastSeen&&(Date.now()-sc.lastSeen)<120000;
-    const longOff=sc.lastSeen&&(Date.now()-sc.lastSeen)>3600000;
+    const now=Date.now();
+    const elapsed=sc.lastSeen?(now-sc.lastSeen):Infinity;
+    const online=elapsed<120000;            // online si visto en últimos 2 min
+    const warn5=elapsed>300000&&elapsed<3600000;  // aviso si offline 5-60 min
+    const longOff=elapsed>3600000;          // crítico si offline > 1 hora
     const dot=longOff?'warn':online?'ok':'off';
     const ago=sc.lastSeen?timeAgo(sc.lastSeen):'nunca';
     const vol=sc.volume!==undefined?sc.volume:80;
+    const np=sc.nowPlaying?`<div style="font-size:10px;color:#555;font-family:var(--fm);margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">▶ ${esc(sc.nowPlaying)}</div>`:'';
+    const warnMsg=longOff
+      ?'<div class="sc-warn">🔴 Sin conexión hace más de 1 hora</div>'
+      :warn5
+      ?'<div class="sc-warn" style="color:#ffaa00">⚠️ Sin conexión hace '+ago+'</div>'
+      :'';
     return `<div class="sc-card${longOff?' warn':''}">
       <div class="sc-top"><div class="sc-dot ${dot}"></div><div class="sc-name">${esc(sc.name||'Pantalla')}</div></div>
       <div class="sc-status">${online?'🟢 Online':'🔴 Offline'} · ${ago}</div>
-      ${longOff?'<div class="sc-warn">⚠ Sin conexión hace más de 1 hora</div>':''}
+      ${np}
+      ${warnMsg}
       <div class="sc-vol">
         <span class="sc-vol-lbl">Volumen</span>
         <input type="range" class="vol-sl" min="0" max="100" value="${vol}"
@@ -2182,6 +2192,23 @@ function renderScreens(){
     </div>`;
   }).join('');
 }
+
+// Monitor automático: alerta en el panel si alguna TV se cae
+const _alertedScreens = new Set();
+setInterval(() => {
+  Object.entries(SCREENS).forEach(([sid, sc]) => {
+    const elapsed = sc.lastSeen ? (Date.now() - sc.lastSeen) : Infinity;
+    const name = sc.name || sid;
+    if (elapsed > 300000 && !_alertedScreens.has(sid)) {
+      _alertedScreens.add(sid);
+      toast(`⚠️ ${name} sin conexión hace ${timeAgo(sc.lastSeen)}`, 'warn');
+    }
+    if (elapsed < 120000 && _alertedScreens.has(sid)) {
+      _alertedScreens.delete(sid); // volvió — limpiar alerta
+      toast(`✅ ${name} reconectada`, 'ok');
+    }
+  });
+}, 60000); // comprobar cada minuto
 
 function setVol(sid,vol){DB.ref(`sys/${syncCode}/screens/${sid}/volume`).set(vol);DB.ref(`sys/${syncCode}/commands/${sid}`).set({action:'volume',value:vol,ts:Date.now()});}
 function rebootScreen(sid){DB.ref(`sys/${syncCode}/commands/${sid}`).set({action:'reload',ts:Date.now()});toast('Reinicio enviado','info');}
