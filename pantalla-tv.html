@@ -57,11 +57,14 @@
     @keyframes spin{to{transform:rotate(360deg);}}
 
     /* ── PLAYER ────────────────────────────────────── */
-    #player{display:none;position:fixed;inset:0;background:#000;}
+    #player{display:none;position:fixed;inset:0;background:#000;opacity:0;transition:opacity 1.2s ease-in-out;}
+    #player.fade-in{opacity:1;}
     #vid,#img,#img2{
       position:absolute;inset:0;width:100%;height:100%;
-      object-fit:cover;opacity:0;transition:opacity .9s ease-in-out;
+      opacity:0;transition:opacity .9s ease-in-out;
     }
+    #vid{ object-fit:cover; }              /* vídeo llena la pantalla */
+    #img,#img2{ object-fit:contain; background:#000; } /* foto completa, con bandas si hace falta */
 
     /* ── URGENTE ───────────────────────────────────── */
     #urgent-overlay{
@@ -79,20 +82,38 @@
 
     /* ── TICKER ────────────────────────────────────── */
     #ticker{
-      position:fixed;bottom:0;left:0;right:0;height:72px;
-      background:rgba(0,0,0,.92);display:flex;align-items:center;
-      z-index:100;border-top:4px solid var(--accent);
+      position:fixed;bottom:0;left:0;right:0;height:74px;
+      background:linear-gradient(180deg, rgba(10,10,10,.85) 0%, rgba(0,0,0,.97) 100%);
+      backdrop-filter:blur(6px);
+      display:flex;align-items:center;
+      z-index:100;border-top:3px solid var(--accent);
+      box-shadow:0 -8px 24px rgba(0,0,0,.4);
     }
     #ticker-logo{
-      background:var(--accent);color:#000;height:100%;
-      display:flex;align-items:center;padding:0 24px;
-      font-weight:900;font-size:22px;text-transform:uppercase;
-      letter-spacing:.05em;white-space:nowrap;flex-shrink:0;
+      background:linear-gradient(135deg, var(--accent), #e6b800);
+      color:#000;height:100%;
+      display:flex;align-items:center;gap:8px;padding:0 26px;
+      font-weight:900;font-size:21px;text-transform:uppercase;
+      letter-spacing:.06em;white-space:nowrap;flex-shrink:0;
+      box-shadow:4px 0 16px rgba(0,0,0,.3);
+      position:relative;z-index:2;
     }
-    #ticker-wrap{flex:1;overflow:hidden;white-space:nowrap;}
+    #ticker-logo::after{
+      content:'';position:absolute;right:-12px;top:0;bottom:0;width:24px;
+      background:linear-gradient(90deg, var(--accent), transparent);
+      clip-path:polygon(0 0,100% 50%,0 100%);
+      opacity:.5;
+    }
+    #ticker-wrap{flex:1;overflow:hidden;white-space:nowrap;position:relative;}
+    #ticker-wrap::before,#ticker-wrap::after{
+      content:'';position:absolute;top:0;bottom:0;width:40px;z-index:2;pointer-events:none;
+    }
+    #ticker-wrap::before{left:0;background:linear-gradient(90deg, rgba(0,0,0,.9), transparent);}
+    #ticker-wrap::after{right:0;background:linear-gradient(270deg, rgba(0,0,0,.9), transparent);}
     #ticker-text{
-      display:inline-block;font-size:28px;font-weight:700;
-      padding-left:100%;white-space:nowrap;
+      display:inline-block;font-size:27px;font-weight:700;
+      padding-left:100%;white-space:nowrap;letter-spacing:.01em;
+      text-shadow:0 1px 3px rgba(0,0,0,.6);
       animation:tickerScroll 40s linear infinite;
     }
     @keyframes tickerScroll{from{transform:translateX(0);}to{transform:translateX(-100%);}}
@@ -208,7 +229,7 @@
 
 <!-- TICKER -->
 <div id="ticker">
-  <div id="ticker-logo">SALA</div>
+  <div id="ticker-logo"><span style="font-size:16px">📍</span>SALA</div>
   <div id="ticker-wrap"><div id="ticker-text">Iniciando...</div></div>
   <div id="ticker-temp" style="
   padding:0 24px;font-size:28px;font-weight:900;color:#ffcc00;
@@ -283,12 +304,13 @@ function unlockAudio() {
   // Pedir almacenamiento persistente — evita que Android borre la caché automáticamente
   requestPersistentStorage();
 
-  // Ocultar pantalla de inicio
+  // Ocultar pantalla de inicio — fade + escalado suave
   const el = ge('click-start');
   if (el) {
-    el.style.transition = 'opacity .5s';
+    el.style.transition = 'opacity .8s ease, transform .8s ease';
     el.style.opacity = '0';
-    setTimeout(() => { el.style.display = 'none'; }, 500);
+    el.style.transform = 'scale(1.08)';
+    setTimeout(() => { el.style.display = 'none'; }, 800);
   }
 
   console.log('[audio] Desbloqueado');
@@ -373,7 +395,15 @@ function showStandby() {
   const displayName = (bizName && bizName !== 'undefined') ? bizName : 'SIGN.OS';
   ge('sb-name').textContent = displayName;
 }
-function showPlayer()  { ge('standby-screen').style.display='none'; ge('player').style.display='block'; }
+function showPlayer()  {
+  ge('standby-screen').style.display='none';
+  const p = ge('player');
+  p.style.display='block';
+  p.classList.remove('fade-in');
+  // Forzar reflow para que la transición se aplique desde opacity:0
+  void p.offsetWidth;
+  requestAnimationFrame(() => p.classList.add('fade-in'));
+}
 function updateBadge() { ge('room-badge').textContent=screenName; ge('ticker-logo').textContent=screenName; }
 
 // ════════════════════════════════════════════════════
@@ -478,8 +508,55 @@ function startPlayer() {
 async function loadCfg() {
   try {
     const m = await DB.ref(`sys/${sysCode}/meta`).once('value');
-    if (m.exists() && m.val().name) { bizName = m.val().name; ge('sb-name').textContent = bizName; }
+    if (m.exists()) {
+      const meta = m.val();
+      if (meta.name) { bizName = meta.name; ge('sb-name').textContent = bizName; }
+      applyLogo(meta.logoUrl, meta.logoPos, meta.logoSize);
+    }
+    // Escuchar cambios en vivo (si cambias el logo desde el panel, se actualiza sin recargar)
+    DB.ref(`sys/${sysCode}/meta`).on('value', snap => {
+      if (!snap.exists()) return;
+      const meta = snap.val();
+      if (meta.name) bizName = meta.name;
+      applyLogo(meta.logoUrl, meta.logoPos, meta.logoSize);
+    });
   } catch(e){}
+}
+
+// Posiciona el logo del negocio en una de las 9 zonas de la pantalla
+function applyLogo(url, pos, size) {
+  let el = ge('biz-logo');
+  if (!url) { if (el) el.style.display = 'none'; return; }
+  if (!el) {
+    el = document.createElement('img');
+    el.id = 'biz-logo';
+    el.style.cssText = 'position:fixed;z-index:50;object-fit:contain;pointer-events:none;filter:drop-shadow(0 2px 8px rgba(0,0,0,.6))';
+    document.body.appendChild(el);
+  }
+  el.src = url;
+  el.style.display = 'block';
+
+  const sizes  = { small: 70, medium: 110, large: 160 };
+  const h = sizes[size] || sizes.medium;
+  el.style.height = h + 'px';
+  el.style.width  = 'auto';
+  el.style.maxWidth = (h * 2.2) + 'px';
+
+  const marginSide = '28px';
+  const marginBottom = '100px'; // deja hueco sobre el ticker (74px + margen)
+  // Limpiar posicionamiento previo
+  el.style.top = el.style.bottom = el.style.left = el.style.right = el.style.transform = '';
+  const p = pos || 'tr';
+  if (p[0] === 't') el.style.top = marginSide;
+  if (p[0] === 'b') el.style.bottom = marginBottom;
+  if (p === 'tc' || p === 'bc') { el.style.left = '50%'; el.style.transform = 'translateX(-50%)'; }
+  else if (p[1] === 'l') el.style.left = marginSide;
+  else if (p[1] === 'r') el.style.right = marginSide;
+  if (p === 'ml' || p === 'mr' || p === 'mc') {
+    el.style.top = '50%';
+    el.style.transform = (el.style.transform ? el.style.transform + ' ' : '') + 'translateY(-50%)';
+    if (p === 'mc') { el.style.left = '50%'; el.style.transform = 'translate(-50%,-50%)'; }
+  }
 }
 
 // ════════════════════════════════════════════════════
@@ -550,6 +627,16 @@ async function idbGetAll(store) {
   });
 }
 
+// Reporta el consumo de descarga de esta TV a Firebase, para que el panel
+// pueda sumar el total de todas las salas y avisar si se dispara
+function reportUsageToFirebase(usageMB, today) {
+  if (!DB || !sysCode || !screenId) return;
+  DB.ref(`sys/${sysCode}/usage/${today}/${screenId}`).set({
+    mb: Math.round(usageMB),
+    updatedAt: Date.now(),
+  }).catch(() => {});
+}
+
 // Descargar un archivo de Cloudinary y guardarlo como blob
 async function cacheFile(file) {
   try {
@@ -559,7 +646,7 @@ async function cacheFile(file) {
     const usageKey = 'cache_usage_' + today;
     let usage = parseFloat(localStorage.getItem(usageKey) || '0');
     const fileMB = (file.size || 0) / 1024 / 1024;
-    const DAILY_LIMIT_MB = 500; // tope de seguridad por TV y día
+    const DAILY_LIMIT_MB = 200; // tope de seguridad por TV y día — con 6 salas, máx ~1.2GB/día total
     if (usage + fileMB > DAILY_LIMIT_MB) {
       console.warn(`[cache] Límite diario alcanzado (${usage.toFixed(0)}MB) — usando streaming para`, file.name);
       return file.url;
@@ -577,8 +664,10 @@ async function cacheFile(file) {
     const blob = await resp.blob();
     const blobUrl = URL.createObjectURL(blob);
 
-    // Contabilizar consumo del día
-    localStorage.setItem(usageKey, (usage + fileMB).toFixed(2));
+    // Contabilizar consumo del día — local y reportado a Firebase
+    const newUsage = usage + fileMB;
+    localStorage.setItem(usageKey, newUsage.toFixed(2));
+    reportUsageToFirebase(newUsage, today);
 
     // Guardar en IndexedDB
     await idbPut(IDB_FILES, {
@@ -769,12 +858,30 @@ function listenFiles() {
     if (_filesLoaded && _assignLoaded) buildPlaylist();
   });
 
-  // Descargar archivos en caché en background (5s después para no bloquear arranque)
+  // Descargar archivos en caché en background, ESCALONADO por sala
+  // para que las 6 salas no descarguen todas a la vez el mismo segundo
+  // y se reparta la carga de Cloudinary en el tiempo.
   if (navigator.onLine) {
+    const delay = getStaggeredDelay();
+    console.log(`[sync] Sincronización programada en ${Math.round(delay/1000)}s (escalonado por sala)`);
     setTimeout(() => {
       if (_filesLoaded && _assignLoaded) syncCommonFiles();
-    }, 5000);
+    }, delay);
   }
+}
+
+// Calcula un retraso distinto para cada sala, basado en su screenId,
+// repartido en una ventana de hasta 5 minutos — así si cambias contenido
+// y las 6 salas detectan el cambio a la vez, no descargan todas al unísono.
+function getStaggeredDelay() {
+  const BASE_DELAY  = 5000;       // 5s mínimo, igual que antes
+  const WINDOW_MS   = 5 * 60000;  // ventana de reparto: 5 minutos
+  // Hash simple del screenId para obtener un número estable 0-1 por sala
+  let hash = 0;
+  const id = screenId || 'default';
+  for (let i = 0; i < id.length; i++) { hash = (hash * 31 + id.charCodeAt(i)) >>> 0; }
+  const fraction = (hash % 1000) / 1000; // 0.000 - 0.999
+  return BASE_DELAY + Math.round(fraction * WINDOW_MS);
 }
 
 // Al volver internet — sincronizar cambios
@@ -794,9 +901,9 @@ window.addEventListener('online', () => {
         if (!cached || (f.uploaded||0) > (cached.uploaded||0)) changed++;
       });
       if (changed > 0) {
-        console.log(`[online] ${changed} archivos nuevos/modificados — actualizando`);
+        console.log(`[online] ${changed} archivos nuevos/modificados — sincronizando en ${Math.round(getStaggeredDelay()/1000)}s`);
         _allFilesMap = allFiles;
-        syncCommonFiles();
+        setTimeout(syncCommonFiles, getStaggeredDelay());
       }
     });
   }
@@ -884,7 +991,7 @@ function buildPlaylist() {
   if (basePhotos.length) {
     basePhotos
       .sort((a,b) => (a.order||a.uploaded||0)-(b.order||b.uploaded||0))
-      .forEach(f => baseItems.push({...f, _type:'image'}));
+      .forEach(f => { for (let i=0; i<(f.freq||1); i++) baseItems.push({...f, _type:'image'}); });
   }
 
   // Fallback si no hay nada
@@ -1018,7 +1125,7 @@ function playMusicTrack(idx) {
   const song = _musicQueue[_musicIdx];
   if (!song || !song.url) { playMusicTrack(_musicIdx + 1); return; }
 
-  MUSIC_EL.src    = song.url;
+  MUSIC_EL.src    = optimizeCloudinaryAudioUrl(song.url);
   MUSIC_EL.volume = currentVol / 100;
 
   // Al terminar la canción, pasar a la siguiente automáticamente
@@ -1100,13 +1207,23 @@ function playItem(idx) {
     vid.muted  = false;
     vid.src    = item.url;
 
+    // Asegurar que cualquier foto previa se desvanece suavemente
+    img.style.opacity = 0;
+    ge('img2').style.opacity = 0;
+
     vid.oncanplay = () => {
-      vid.style.opacity = 1;
+      // Fade-in suave del vídeo (la transición CSS de #vid ya dura .9s)
+      requestAnimationFrame(() => { vid.style.opacity = 1; });
       vid.play().catch(() => { vid.muted = true; vid.play(); });
     };
     vid.onloadedmetadata = () => {
       clearTimeout(playTimer);
-      playTimer = setTimeout(nextItem, Math.max(1000, (vid.duration + 2) * 1000));
+      // Empezar a desvanecer el vídeo un poco antes de que acabe,
+      // para que el cambio al siguiente contenido sea suave y no brusco
+      const totalMs = Math.max(1000, (vid.duration + 2) * 1000);
+      playTimer = setTimeout(nextItem, totalMs);
+      const fadeOutAt = Math.max(0, totalMs - 900); // 0.9s antes del cambio
+      setTimeout(() => { if (vid.src) vid.style.opacity = 0; }, fadeOutAt);
     };
     vid.onended = () => {
       _videoPlaying = false;
@@ -1186,6 +1303,16 @@ function optimizeCloudinaryUrl(url) {
   return url;
 }
 
+// Música de fondo en bitrate reducido (128kbps) — calidad de sobra para
+// audio ambiente de sala y reduce bastante el ancho de banda consumido
+function optimizeCloudinaryAudioUrl(url) {
+  if (!url || !url.includes('res.cloudinary.com')) return url;
+  if (url.includes('/video/upload/')) { // los audios en Cloudinary van bajo /video/
+    return url.replace('/video/upload/', '/video/upload/br_128k,f_auto/');
+  }
+  return url;
+}
+
 function nextItem() {
   clearTimeout(playTimer);
   resetVid();
@@ -1194,21 +1321,39 @@ function nextItem() {
   _consecutiveSkips = 0;
   curIdx = (curIdx + 1) % Math.max(1, PLAYLIST.length);
 
-  // Precarga segura del siguiente archivo — solo fotos, no vídeos
-  // Así cuando llegue su turno ya está en caché del navegador
+  // Precarga segura del siguiente archivo
+  // — Fotos: se piden completas (son ligeras, pocos KB con la compresión Cloudinary)
+  // — Vídeos: solo un "hint" de precarga (preload metadata), el navegador
+  //   decide cuánto buffer pedir sin descargar el archivo entero de golpe.
+  //   Esto evita repetir el problema de cuota de Cloudinary.
   const preloadIdx = (curIdx + 1) % Math.max(1, PLAYLIST.length);
   if (PLAYLIST[preloadIdx]) {
     const nextFile = PLAYLIST[preloadIdx];
-    if (detectType(nextFile) === 'image' && nextFile.url && !nextFile.url.startsWith('blob:null')) {
+    const nextType = detectType(nextFile);
+    if (nextType === 'image' && nextFile.url && !nextFile.url.startsWith('blob:null')) {
       const pre = new Image();
       pre.src = optimizeCloudinaryUrl(nextFile.url);
-      // Solo precarga — no hacemos nada con el resultado
+    } else if (nextType === 'video' && nextFile.url && !nextFile.url.startsWith('blob:null')) {
+      preloadVideoHint(nextFile.url);
     }
   }
 
   const next = PLAYLIST[curIdx];
   if (next && next._bgMusic) stopAllMusic();
   playItem(curIdx);
+}
+
+// Precarga ligera de vídeo: usa un <link rel="preload"> en vez de descargar
+// el archivo completo. El navegador gestiona el ancho de banda de forma nativa
+// y prioriza la reproducción actual, sin disparar consumo de Cloudinary.
+let _preloadLinkEl = null;
+function preloadVideoHint(url) {
+  if (_preloadLinkEl) _preloadLinkEl.remove();
+  _preloadLinkEl = document.createElement('link');
+  _preloadLinkEl.rel = 'preload';
+  _preloadLinkEl.as  = 'video';
+  _preloadLinkEl.href = url;
+  document.head.appendChild(_preloadLinkEl);
 }
 
 // ════════════════════════════════════════════════════
@@ -1621,6 +1766,22 @@ function heartbeat() {
 async function fetchWeather() {
   try {
     const city = (tickerCfg.weatherCity || 'Almeria').trim();
+
+    // 1. Comprobar si ya hay una temperatura reciente compartida en Firebase
+    //    (menos de 20 min) — así no todas las salas piden lo mismo a la vez
+    try {
+      const shared = await DB.ref(`sys/${sysCode}/weather`).once('value');
+      if (shared.exists()) {
+        const w = shared.val();
+        const age = Date.now() - (w.updatedAt || 0);
+        if (w.city === city && age < 20 * 60000 && typeof w.temp === 'number') {
+          applyWeather(w.temp);
+          return; // usamos el dato compartido, no llamamos a la API
+        }
+      }
+    } catch(e) { /* sin acceso al dato compartido, seguimos y consultamos la API */ }
+
+    // 2. No hay dato reciente — esta TV consulta la API y lo comparte para las demás
     const geo  = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&language=es`);
     const gd   = await geo.json();
     if (!gd.results || !gd.results[0]) return;
@@ -1628,20 +1789,25 @@ async function fetchWeather() {
     const wRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current_weather=true`);
     const wd   = await wRes.json();
     if (wd.current_weather) {
-      weatherTemp = Math.round(wd.current_weather.temperature);
-      // Mostrar temperatura en el ticker (reemplaza al reloj)
-      const el = ge('ticker-temp');
-      if (el) {
-        el.textContent = weatherTemp + '°';
-        // Color según temperatura
-        el.style.color = weatherTemp >= 30 ? '#ff6b35'   // calor — naranja
-                       : weatherTemp >= 20 ? '#ffcc00'   // templado — amarillo
-                       : weatherTemp >= 10 ? '#00e5ff'   // fresco — azul claro
-                       : '#7ecfff';                       // frío — azul
-      }
-      renderTicker();
+      const temp = Math.round(wd.current_weather.temperature);
+      applyWeather(temp);
+      // Compartir para que el resto de salas no tengan que consultar la API
+      DB.ref(`sys/${sysCode}/weather`).set({ temp, city, updatedAt: Date.now() }).catch(()=>{});
     }
   } catch(e) { console.warn('[weather]', e); }
+}
+
+function applyWeather(temp) {
+  weatherTemp = temp;
+  const el = ge('ticker-temp');
+  if (el) {
+    el.textContent = temp + '°';
+    el.style.color = temp >= 30 ? '#ff6b35'
+                    : temp >= 20 ? '#ffcc00'
+                    : temp >= 10 ? '#00e5ff'
+                    : '#7ecfff';
+  }
+  renderTicker();
 }
 
 // ════════════════════════════════════════════════════

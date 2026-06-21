@@ -253,6 +253,43 @@ textarea.inp{resize:vertical;line-height:1.7}
 .set-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
 @media(max-width:700px){.set-grid{grid-template-columns:1fr}}
 .set-card{background:var(--s2);border:1px solid var(--border);padding:20px}
+
+/* ── CAMBIOS PENDIENTES ──────────────────────────── */
+#pending-bar{
+  background:var(--s2);border:1px solid #5a4a00;border-left:4px solid var(--accent);
+  margin:0 24px;margin-top:16px;padding:14px 18px;
+}
+.pending-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.pending-title{display:flex;align-items:center;gap:8px;font-family:var(--fh);font-size:15px;font-weight:700}
+.pending-icon{font-size:16px}
+.pending-sub{font-family:var(--fm);font-size:10px;color:var(--text3)}
+#pending-list{background:var(--bg);border:1px solid var(--border);margin-bottom:12px;max-height:220px;overflow-y:auto}
+.pend-item{display:flex;align-items:center;gap:10px;padding:9px 12px;border-bottom:1px solid var(--border)}
+.pend-item:last-child{border-bottom:none}
+.pend-icon{width:26px;height:26px;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0}
+.pend-icon.add{background:rgba(0,230,118,.15)}
+.pend-icon.move{background:rgba(56,150,255,.15)}
+.pend-icon.del{background:rgba(255,68,68,.15)}
+.pend-info{flex:1;min-width:0}
+.pend-name{font-family:var(--fm);font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pend-desc{font-family:var(--fm);font-size:10px;color:var(--text2)}
+.pend-x{background:none;border:none;color:var(--text3);cursor:pointer;font-size:14px;padding:4px;flex-shrink:0}
+.pend-x:hover{color:var(--red)}
+.pending-actions{display:flex;gap:10px}
+.btn-sync{flex:1;background:var(--green);color:#000;border:none;font-family:var(--fh);font-weight:700;font-size:13px;padding:11px;cursor:pointer}
+.btn-discard{background:transparent;color:var(--text2);border:1px solid var(--border);font-family:var(--fm);font-size:12px;padding:11px 18px;cursor:pointer}
+.btn-discard:hover{border-color:var(--red);color:var(--red)}
+
+.sync-target-box{background:var(--bg);border:1px solid var(--border);padding:12px 14px;margin-bottom:12px}
+.sync-target-lbl{font-family:var(--fm);font-size:10px;color:var(--accent);letter-spacing:.08em;margin-bottom:8px;text-transform:uppercase}
+#sync-target-rooms{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px}
+.sync-room-chip{display:flex;align-items:center;gap:6px;background:var(--s2);border:1px solid var(--border);padding:6px 12px;cursor:pointer;font-family:var(--fm);font-size:11px;user-select:none}
+.sync-room-chip:hover{border-color:var(--accent)}
+.sync-room-chip.checked{background:rgba(0,230,118,.12);border-color:var(--green);color:var(--green)}
+.sync-room-chip input{display:none}
+.sync-target-hint{font-family:var(--fm);font-size:9px;color:var(--text3);line-height:1.5}
+.sync-room-all{font-weight:700}
+
 .set-card-title{font-family:var(--fh);font-size:17px;font-weight:700;margin-bottom:16px}
 .srv-toggle{display:flex;margin-bottom:20px;border:1px solid var(--border)}
 .srv-btn{flex:1;padding:10px;background:transparent;border:none;color:var(--text2);font-family:var(--fm);font-size:11px;cursor:pointer;transition:.15s}
@@ -260,6 +297,7 @@ textarea.inp{resize:vertical;line-height:1.7}
 .logo-prev{width:100%;height:80px;background:var(--bg);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;margin-bottom:10px;overflow:hidden}
 .logo-prev img{max-width:100%;max-height:100%;object-fit:contain}
 .logo-prev span{font-family:var(--fm);font-size:11px;color:var(--text3)}
+.logo-pos-btn:hover{border-color:var(--accent) !important}
 .pin-big{font-family:var(--fh);font-size:52px;font-weight:800;color:var(--accent);letter-spacing:.3em;line-height:1;margin-bottom:4px}
 .pin-note{background:var(--s1);border:1px solid var(--border);padding:8px 10px;font-family:var(--fm);font-size:10px;color:var(--text3);line-height:1.8;margin-bottom:14px}
 
@@ -408,6 +446,29 @@ textarea.inp{resize:vertical;line-height:1.7}
    <div class="cdot" id="cdot"></div>
    <div class="pin-chip" id="pin-chip" onclick="copyPin()" title="PIN TVs">——</div>
    <button class="logout-btn" onclick="doLogout()">salir</button>
+  </div>
+ </div>
+
+ <!-- CAMBIOS PENDIENTES — barra global, visible en todas las páginas -->
+ <div id="pending-bar" style="display:none">
+  <div class="pending-head">
+   <div class="pending-title">
+    <span class="pending-icon">⏳</span>
+    <span id="pending-count">0 cambios pendientes</span>
+   </div>
+   <span class="pending-sub">sin aplicar a las pantallas</span>
+  </div>
+  <div id="pending-list"></div>
+
+  <div class="sync-target-box">
+   <div class="sync-target-lbl">¿A qué salas sincronizar ahora?</div>
+   <div id="sync-target-rooms"></div>
+   <div class="sync-target-hint">Elige solo algunas salas para repartir la descarga en varios días y proteger tu cuota de Cloudinary.</div>
+  </div>
+
+  <div class="pending-actions">
+   <button class="btn btn-sync" onclick="applyPendingChanges()">🚀 Sincronizar salas seleccionadas</button>
+   <button class="btn btn-discard" onclick="discardPendingChanges()">✕ Descartar todo</button>
   </div>
  </div>
 
@@ -735,9 +796,21 @@ textarea.inp{resize:vertical;line-height:1.7}
      <input type="file" accept="image/*" style="position:absolute;inset:0;opacity:0;cursor:pointer;z-index:1" onchange="uploadLogo(this.files[0])">
      <button class="btn btn-g btn-sm" style="width:100%;pointer-events:none">Seleccionar imagen</button>
     </div>
+    <div class="lbl">Posición en la pantalla TV</div>
+    <div id="logo-pos-grid" style="
+      display:grid;grid-template-columns:repeat(3,1fr);gap:6px;
+      width:140px;margin:8px auto 16px;aspect-ratio:16/9;
+      background:var(--bg);border:1px solid var(--border);padding:6px">
+    </div>
+    <div class="lbl">Tamaño del logo</div>
+    <select class="inp sm" id="cfg-logo-size">
+      <option value="small">Pequeño</option>
+      <option value="medium" selected>Medio</option>
+      <option value="large">Grande</option>
+    </select>
     <div class="lbl">Nombre visible en la TV</div>
     <input class="inp sm" id="cfg-biz-name" placeholder="Recreativos El As">
-    <button class="btn btn-g btn-sm" style="width:100%" onclick="saveBizCfg()">Guardar</button>
+    <button class="btn btn-g btn-sm" style="width:100%;margin-top:10px" onclick="saveBizCfg()">Guardar</button>
    </div>
    <div class="set-card">
     <div class="set-card-title">▶ Reproducción</div>
@@ -748,6 +821,20 @@ textarea.inp{resize:vertical;line-height:1.7}
     <div class="lbl">Sincronización automática cada</div>
     <select class="inp sm" id="cfg-sync-int"><option value="5">5 minutos</option><option value="10" selected>10 minutos</option><option value="30">30 minutos</option><option value="60">1 hora</option></select>
     <button class="btn btn-g btn-sm" style="width:100%;margin-top:4px" onclick="savePlaybackCfg()">Guardar</button>
+   </div>
+   <div class="set-card">
+    <div class="set-card-title">☁ Almacenamiento (Cloudinary)</div>
+    <div class="lbl">Cloud Name</div>
+    <input class="inp sm" id="cfg-cl-cloud" placeholder="dn5m9waqz">
+    <div class="lbl">Upload Preset</div>
+    <input class="inp sm" id="cfg-cl-preset" placeholder="panel_tv">
+    <div style="font-family:var(--fm);font-size:10px;color:var(--text2);margin:8px 0;line-height:1.6">
+      Si Cloudinary se bloquea por superar la cuota gratuita,
+      crea una cuenta nueva en cloudinary.com con otro email,
+      copia aquí el Cloud Name y el nombre del Upload Preset
+      (modo Unsigned) y pulsa Guardar — sin tocar código.
+    </div>
+    <button class="btn btn-g btn-sm" style="width:100%" onclick="saveCloudinaryCfg()">Guardar</button>
    </div>
    <div class="set-card">
     <div class="set-card-title">⚙ Sistema</div>
@@ -861,6 +948,14 @@ textarea.inp{resize:vertical;line-height:1.7}
    <button class="abtn" onclick="loadStats()">↻ Actualizar</button>
    <button class="abtn" onclick="clearStats()">🗑 Limpiar historial</button>
   </div>
+
+  <div class="stat-card" id="usage-card" style="margin-bottom:16px">
+   <div class="stat-card-t">☁ Consumo de Cloudinary — hoy</div>
+   <div id="usage-content" style="font-family:var(--fm);font-size:12px;color:var(--text2);padding:8px 0">
+     Cargando...
+   </div>
+  </div>
+
   <div class="stats-grid-big" id="stats-detail">
    <div class="empty"><p>Cargando estadísticas...</p></div>
   </div>
@@ -1105,6 +1200,9 @@ async function startSession(user, name, code, tvPin, fbCfg) {
     if (!s.exists()) await DB.ref(`sys/${syncCode}/meta`).set({name:cleanName, created:Date.now(), owner:user});
   } catch(e) { console.warn('[startSession] meta:', e.message); }
 
+  // Cargar credenciales de Cloudinary guardadas (si las hay)
+  try { await loadCloudinaryCfg(); } catch(e) { console.warn('[startSession] cloudinary:', e.message); }
+
   startApp(user, cleanPin);
 }
 
@@ -1260,8 +1358,9 @@ function fixTypesInFirebase() {
 }
 
 // ══ CLOUDINARY DIRECT UPLOAD ══════════════════════════════════════════
-const CL_CLOUD  = 'dn5m9waqz';
-const CL_PRESET = 'panel_tv';
+// Valores por defecto (fallback si Firebase no tiene configuración guardada)
+let CL_CLOUD  = 'dn5m9waqz';
+let CL_PRESET = 'panel_tv';
 
 // Cola de archivos pendientes
 let uploadQueue = [];
@@ -1298,10 +1397,50 @@ async function processQueue() {
 
 // ── Subir un archivo ───────────────────────────────────────────────────
 // ── Subir un archivo ───────────────────────────────────────────────────
+// Redimensiona y comprime una imagen en el navegador antes de subirla.
+// maxDim = lado más largo en píxeles · quality = calidad JPEG (0-1)
+function compressImage(file, maxDim, quality) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      let { width, height } = img;
+      if (width > maxDim || height > maxDim) {
+        if (width > height) { height = Math.round(height * maxDim / width); width = maxDim; }
+        else { width = Math.round(width * maxDim / height); height = maxDim; }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = width; canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, width, height);
+      canvas.toBlob(blob => {
+        if (!blob) { reject(new Error('No se pudo comprimir')); return; }
+        const newFile = new File([blob], file.name, { type: 'image/jpeg' });
+        resolve(newFile);
+      }, 'image/jpeg', quality);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('No se pudo cargar la imagen')); };
+    img.src = url;
+  });
+}
+
 async function uploadOneFile(file) {
   updateQueueItem(file.name, 'uploading', 'Subiendo...');
   ge('upload-status').textContent = 'Subiendo: ' + file.name;
   setBar(0);
+
+  // Comprimir fotos grandes antes de subir — ahorra almacenamiento en Cloudinary.
+  // La TV solo necesita 1280px de ancho como máximo (la pantalla rara vez supera eso),
+  // así que no tiene sentido guardar fotos de cámara/móvil de 12-20 megapíxeles.
+  if (file.type.startsWith('image/') && file.size > 2 * 1024 * 1024) { // > 2MB
+    try {
+      const compressed = await compressImage(file, 1920, 0.85);
+      console.log(`[upload] Foto comprimida: ${(file.size/1024/1024).toFixed(1)}MB → ${(compressed.size/1024/1024).toFixed(1)}MB`);
+      file = compressed;
+    } catch(e) { console.warn('[upload] No se pudo comprimir, se sube original:', e); }
+  }
+
   console.log('[CL] Subiendo:', file.name, 'type:', file.type, 'size:', file.size);
 
   const fd = new FormData();
@@ -1394,20 +1533,30 @@ async function uploadOneFile(file) {
 // ══ ASIGNACIONES — qué archivos va a cada sala ════════════════════════
 
 // Añadir un archivo a una sala (sin duplicar el archivo físico)
-async function assignFileToSala(fileId, salaId) {
+async function assignFileToSala(fileId, salaId, skipPending) {
   const sala = salaId || 'common';
   const current = (ASSIGNMENTS[sala] || []);
   if (current.includes(fileId)) return; // ya asignado
   const updated = [...current, fileId];
   await DB.ref(`sys/${syncCode}/assignments/${sala}`).set(updated);
+  if (!skipPending) {
+    const f = FILES.find(x => x.id === fileId);
+    const salaTxt = sala === 'common' ? 'COMÚN' : (ROOMS[sala]?.name || sala);
+    addPendingChange('move', fileId, f ? f.name : fileId, 'Añadido a ' + salaTxt);
+  }
 }
 
 // Quitar un archivo de una sala
-async function unassignFileFromSala(fileId, salaId) {
+async function unassignFileFromSala(fileId, salaId, skipPending) {
   const sala = salaId || 'common';
   const current = (ASSIGNMENTS[sala] || []);
   const updated = current.filter(id => id !== fileId);
   await DB.ref(`sys/${syncCode}/assignments/${sala}`).set(updated.length ? updated : null);
+  if (!skipPending) {
+    const f = FILES.find(x => x.id === fileId);
+    const salaTxt = sala === 'common' ? 'COMÚN' : (ROOMS[sala]?.name || sala);
+    addPendingChange('move', fileId, f ? f.name : fileId, 'Quitado de ' + salaTxt);
+  }
 }
 
 // Ver en qué salas está asignado un archivo
@@ -1600,6 +1749,128 @@ async function deleteRoom(salaId) {
 }
 
 // ── Guardar en Firebase (reutilizable) ────────────────────────────────
+// ══ CAMBIOS PENDIENTES ════════════════════════════════════════════════
+// Los archivos SÍ se guardan en Firebase al subir (ya están en Cloudinary,
+// no tiene sentido perderlos), pero la señal de "refresh" a las TVs no se
+// envía hasta que el usuario pulse "Aplicar y sincronizar". Así se evita
+// que cada subida/movimiento/borrado dispare una descarga inmediata.
+let PENDING_CHANGES = []; // {type:'add'|'move'|'del', fid, name, desc}
+let SELECTED_SYNC_ROOMS = new Set(); // qué salas se sincronizan en el próximo "Aplicar"
+
+function addPendingChange(type, fid, name, desc) {
+  // Si ya hay un cambio pendiente para el mismo archivo, lo sustituye
+  // (ej: subes y luego mueves el mismo archivo → solo se muestra el último estado relevante)
+  const existing = PENDING_CHANGES.find(c => c.fid === fid && c.type === type);
+  if (existing) { existing.desc = desc; existing.name = name; }
+  else PENDING_CHANGES.push({ type, fid, name, desc, id: 'p_' + Date.now() + '_' + Math.random().toString(36).slice(2,5) });
+  renderPendingBar();
+}
+
+function removePendingChange(id) {
+  PENDING_CHANGES = PENDING_CHANGES.filter(c => c.id !== id);
+  renderPendingBar();
+}
+
+function toggleSyncRoom(screenId) {
+  if (screenId === '__all__') {
+    // "Todas" marca/desmarca el conjunto completo
+    const allIds = Object.keys(SCREENS);
+    const allSelected = allIds.every(id => SELECTED_SYNC_ROOMS.has(id));
+    if (allSelected) SELECTED_SYNC_ROOMS.clear();
+    else allIds.forEach(id => SELECTED_SYNC_ROOMS.add(id));
+  } else {
+    if (SELECTED_SYNC_ROOMS.has(screenId)) SELECTED_SYNC_ROOMS.delete(screenId);
+    else SELECTED_SYNC_ROOMS.add(screenId);
+  }
+  renderSyncRoomChips();
+}
+
+function renderSyncRoomChips() {
+  const box = ge('sync-target-rooms');
+  if (!box) return;
+  const screenIds = Object.keys(SCREENS);
+  if (!screenIds.length) {
+    box.innerHTML = '<span style="font-family:var(--fm);font-size:11px;color:var(--text3)">No hay pantallas registradas todavía</span>';
+    return;
+  }
+  // Por defecto, si no hay nada seleccionado, seleccionar todas (comportamiento anterior)
+  if (SELECTED_SYNC_ROOMS.size === 0) screenIds.forEach(id => SELECTED_SYNC_ROOMS.add(id));
+
+  const allChecked = screenIds.every(id => SELECTED_SYNC_ROOMS.has(id));
+  let html = `<label class="sync-room-chip sync-room-all${allChecked?' checked':''}" onclick="toggleSyncRoom('__all__');event.preventDefault()">
+    <input type="checkbox" ${allChecked?'checked':''}>${allChecked?'✓':'○'} Todas las salas
+  </label>`;
+  html += screenIds.map(sid => {
+    const checked = SELECTED_SYNC_ROOMS.has(sid);
+    const name = SCREENS[sid]?.name || sid;
+    return `<label class="sync-room-chip${checked?' checked':''}" onclick="toggleSyncRoom('${sid}');event.preventDefault()">
+      <input type="checkbox" ${checked?'checked':''}>${checked?'✓':'○'} ${esc(name)}
+    </label>`;
+  }).join('');
+  box.innerHTML = html;
+}
+
+function renderPendingBar() {
+  const bar = ge('pending-bar');
+  if (!bar) return;
+  if (!PENDING_CHANGES.length) { bar.style.display = 'none'; return; }
+  bar.style.display = 'block';
+
+  ge('pending-count').textContent = PENDING_CHANGES.length + (PENDING_CHANGES.length === 1 ? ' cambio pendiente' : ' cambios pendientes');
+
+  const icons = { add: { cls:'add', ic:'⬆' }, move: { cls:'move', ic:'→' }, del: { cls:'del', ic:'🗑' } };
+  ge('pending-list').innerHTML = PENDING_CHANGES.map(c => {
+    const ic = icons[c.type] || icons.add;
+    return `<div class="pend-item">
+      <div class="pend-icon ${ic.cls}">${ic.ic}</div>
+      <div class="pend-info">
+        <div class="pend-name">${esc(c.name)}</div>
+        <div class="pend-desc">${esc(c.desc)}</div>
+      </div>
+      <button class="pend-x" onclick="removePendingChange('${c.id}')" title="Quitar de la lista (no deshace el cambio en sí)">✕</button>
+    </div>`;
+  }).join('');
+
+  renderSyncRoomChips();
+}
+
+async function applyPendingChanges() {
+  if (!PENDING_CHANGES.length) return;
+  const targetRooms = Array.from(SELECTED_SYNC_ROOMS);
+  if (!targetRooms.length) { toast('Selecciona al menos una sala', 'warn'); return; }
+
+  const count = PENDING_CHANGES.length;
+  const allRooms = Object.keys(SCREENS).every(id => SELECTED_SYNC_ROOMS.has(id));
+  toast(`Sincronizando ${count} cambio(s) en ${targetRooms.length} sala(s)...`, 'info');
+  try {
+    if (allRooms) {
+      // Comando global — todas las TVs lo reciben (y se escalonan solas entre sí)
+      await DB.ref(`sys/${syncCode}/command`).set({ action: 'refresh', ts: Date.now() });
+    } else {
+      // Comando individual — solo a las salas marcadas
+      const updates = {};
+      targetRooms.forEach(sid => { updates[`sys/${syncCode}/commands/${sid}`] = { action: 'refresh', ts: Date.now() }; });
+      await DB.ref().update(updates);
+    }
+    const roomNames = allRooms ? 'todas las salas' : targetRooms.map(sid => SCREENS[sid]?.name || sid).join(', ');
+    addLog('PANEL', `Sincronización: ${count} cambio(s) → ${roomNames}`, 'ok');
+    toast(`✓ Sincronizado con: ${roomNames}`, 'ok');
+    PENDING_CHANGES = [];
+    SELECTED_SYNC_ROOMS.clear();
+    renderPendingBar();
+  } catch(e) {
+    toast('Error al sincronizar: ' + e.message, 'err');
+  }
+}
+
+function discardPendingChanges() {
+  if (!PENDING_CHANGES.length) return;
+  if (!confirm(`¿Descartar la lista de ${PENDING_CHANGES.length} cambio(s)?\n\nNota: esto solo limpia la lista visual — los archivos ya subidos a Cloudinary/Firebase NO se borran solos. Si quieres deshacer un cambio concreto (borrar un archivo subido, devolver uno a su sala anterior), hazlo manualmente desde Contenido.`)) return;
+  PENDING_CHANGES = [];
+  renderPendingBar();
+  toast('Lista de cambios descartada', 'info');
+}
+
 function saveFileToFirebase(url, name, type, source) {
   if (!syncCode || !DB) { toast('Sin sesión activa','err'); return; }
   if (!type || type === 'auto') type = detectType(url);
@@ -1616,10 +1887,11 @@ function saveFileToFirebase(url, name, type, source) {
     order: ts, freq: 1, duration: isImg ? 5 : 0, role: 'base'
   }).then(async () => {
     // Asignar automáticamente a la sala activa
-    await assignFileToSala(fid, currentSala);
-    toast(name + ' añadido' + (currentSala === 'common' ? ' a COMÚN' : ' a ' + (ROOMS[currentSala]?.name || currentSala)) + ' ✓', 'ok');
-    addLog('PANEL', 'Subido: ' + name + ' → ' + (currentSala === 'common' ? 'COMÚN' : currentSala), 'ok');
-    DB.ref(`sys/${syncCode}/command`).set({ action: 'refresh', ts: Date.now() });
+    await assignFileToSala(fid, currentSala, true); // true = no duplicar entrada pendiente
+    const salaTxt = currentSala === 'common' ? 'COMÚN' : (ROOMS[currentSala]?.name || currentSala);
+    toast(name + ' añadido a ' + salaTxt + ' (pendiente)', 'ok');
+    addLog('PANEL', 'Subido: ' + name + ' → ' + salaTxt, 'ok');
+    addPendingChange('add', fid, name, 'Subido nuevo · ' + salaTxt);
   }).catch(e => {
     toast('Error Firebase: ' + e.message, 'err');
   });
@@ -1860,7 +2132,11 @@ function toggleRole(fid) {
 function updateProp(fid,prop,val){DB.ref(`sys/${syncCode}/files/${fid}/${prop}`).set(val);}
 function deleteFile(fid,name){
   if(!confirm(`¿Borrar "${name}"?`))return;
-  DB.ref(`sys/${syncCode}/files/${fid}`).remove().then(()=>{toast(`"${name}" eliminado`,'info');addLog('PANEL','Borrado: '+name,'info');}).catch(e=>toast('Error: '+e.message,'err'));
+  DB.ref(`sys/${syncCode}/files/${fid}`).remove().then(()=>{
+    toast(`"${name}" eliminado (pendiente de sincronizar)`,'info');
+    addLog('PANEL','Borrado: '+name,'info');
+    addPendingChange('del', fid, name, 'Eliminado del catálogo');
+  }).catch(e=>toast('Error: '+e.message,'err'));
 }
 
 let dragIdx=null;
@@ -2274,6 +2550,7 @@ async function runDiag() {
 }
 
 function publishNow(){
+  if (PENDING_CHANGES.length) { applyPendingChanges(); return; }
   DB.ref(`sys/${syncCode}/command`).set({action:'refresh',ts:Date.now()});
   addLog('PANEL','Publicación manual enviada a todas las pantallas','ok');
   toast('📤 Publicado en todas las pantallas ✓','ok');
@@ -2321,18 +2598,27 @@ function renderLog(){
 function clearLog(){LOG=[];localStorage.removeItem('so_log');renderLog();}
 
 // ══ SETTINGS ══════════════════════════════════════════════════════════
-function loadSettingsCfg(){
+async function loadSettingsCfg(){
   const fb=JSON.parse(localStorage.getItem('so_fb')||'{}');
   sv('cfg-fb-key',fb.apiKey||''); sv('cfg-fb-db',fb.databaseURL||'');
   sv('cfg-fb-auth',fb.authDomain||''); sv('cfg-fb-pid',fb.projectId||'');
   sv('cfg-fb-sb',fb.storageBucket||'');
-  sv('cfg-biz-name',localStorage.getItem('so_name')||'');
-  const logo=localStorage.getItem('so_logo');
-  if(logo) ge('logo-prev').innerHTML=`<img src="${logo}">`;
   const pl=JSON.parse(localStorage.getItem('so_playback')||'{}');
   if(pl.transition) ge('cfg-transition').value=pl.transition;
   if(pl.photoDur) sv('cfg-photo-dur',pl.photoDur);
   if(pl.syncInterval) ge('cfg-sync-int').value=pl.syncInterval;
+
+  // Logo, nombre y posición — vienen de Firebase (meta) para llegar a todas las TVs
+  try {
+    const snap = await DB.ref(`sys/${syncCode}/meta`).once('value');
+    const meta = snap.val() || {};
+    sv('cfg-biz-name', meta.name || localStorage.getItem('so_name') || '');
+    if (meta.logoUrl) ge('logo-prev').innerHTML = `<img src="${meta.logoUrl}">`;
+    else ge('logo-prev').innerHTML = '<span>Sin logo</span>';
+    _logoPos = meta.logoPos || 'tr';
+    if (ge('cfg-logo-size')) ge('cfg-logo-size').value = meta.logoSize || 'medium';
+    buildLogoPosGrid();
+  } catch(e) { console.warn('[settings] No se pudo cargar meta:', e); }
 }
 function setSrv(mode){
   ge('srv-firebase').classList.toggle('on',mode==='firebase');
@@ -2345,18 +2631,99 @@ function saveServerCfg(){
   localStorage.setItem('so_fb',JSON.stringify(cfg));
   toast('Guardado','ok');
 }
-function saveBizCfg(){localStorage.setItem('so_name',gv('cfg-biz-name'));toast('Guardado','ok');}
+async function saveBizCfg(){
+  localStorage.setItem('so_name', gv('cfg-biz-name'));
+  try {
+    await DB.ref(`sys/${syncCode}/meta`).update({
+      name: gv('cfg-biz-name'),
+      logoPos: _logoPos,
+      logoSize: gv('cfg-logo-size') || 'medium',
+    });
+    toast('Guardado ✓', 'ok');
+  } catch(e) { toast('Error: ' + e.message, 'err'); }
+}
+
+// Cloudinary — se guarda en Firebase para que sobreviva aunque cambies de PC
+// y para que la TV (si algún día lo necesitara) pueda leerlo también
+async function saveCloudinaryCfg(){
+  const cloud  = gv('cfg-cl-cloud').trim();
+  const preset = gv('cfg-cl-preset').trim();
+  if (!cloud || !preset) { toast('Rellena Cloud Name y Preset', 'warn'); return; }
+  try {
+    await DB.ref(`sys/${syncCode}/cloudinary`).set({ cloud, preset, updatedAt: Date.now() });
+    CL_CLOUD  = cloud;
+    CL_PRESET = preset;
+    toast('Cloudinary actualizado ✓', 'ok');
+    addLog('PANEL', 'Credenciales Cloudinary actualizadas', 'ok');
+  } catch(e) {
+    toast('Error al guardar: ' + e.message, 'err');
+  }
+}
+
+async function loadCloudinaryCfg(){
+  try {
+    const snap = await DB.ref(`sys/${syncCode}/cloudinary`).once('value');
+    if (snap.exists()) {
+      const cfg = snap.val();
+      if (cfg.cloud)  CL_CLOUD  = cfg.cloud;
+      if (cfg.preset) CL_PRESET = cfg.preset;
+      console.log('[cloudinary] Configuración cargada:', CL_CLOUD, CL_PRESET);
+    }
+    // Rellenar los campos del formulario con los valores activos
+    if (ge('cfg-cl-cloud'))  ge('cfg-cl-cloud').value  = CL_CLOUD;
+    if (ge('cfg-cl-preset')) ge('cfg-cl-preset').value = CL_PRESET;
+  } catch(e) { console.warn('[cloudinary] No se pudo cargar config:', e); }
+}
 function savePlaybackCfg(){
   const cfg={transition:gv('cfg-transition'),photoDur:+gv('cfg-photo-dur'),syncInterval:+gv('cfg-sync-int')};
   localStorage.setItem('so_playback',JSON.stringify(cfg));
   DB.ref(`sys/${syncCode}/config`).update(cfg);
   toast('Guardado','ok');
 }
-function uploadLogo(file){
-  if(!file)return;
-  const r=new FileReader();
-  r.onload=e=>{localStorage.setItem('so_logo',e.target.result);ge('logo-prev').innerHTML=`<img src="${e.target.result}">`;toast('Logo guardado','ok');};
-  r.readAsDataURL(file);
+let _logoPos = 'tr'; // posición por defecto: arriba derecha
+
+async function uploadLogo(file){
+  if(!file) return;
+  ge('logo-prev').innerHTML = '<span>Subiendo...</span>';
+  try {
+    const fd = new FormData();
+    fd.append('file', file);
+    fd.append('upload_preset', CL_PRESET);
+    fd.append('folder', 'signos');
+    const uploadUrl = `https://api.cloudinary.com/v1_1/${CL_CLOUD}/image/upload`;
+    const resp = await fetch(uploadUrl, { method:'POST', body: fd });
+    const data = await resp.json();
+    if (!data.secure_url) throw new Error(data.error?.message || 'Error al subir');
+
+    ge('logo-prev').innerHTML = `<img src="${data.secure_url}">`;
+    await DB.ref(`sys/${syncCode}/meta/logoUrl`).set(data.secure_url);
+    toast('Logo subido ✓', 'ok');
+  } catch(e) {
+    ge('logo-prev').innerHTML = '<span>Sin logo</span>';
+    toast('Error al subir logo: ' + e.message, 'err');
+  }
+}
+
+function buildLogoPosGrid(){
+  const grid = ge('logo-pos-grid');
+  if (!grid) return;
+  const positions = [
+    {id:'tl', icon:'↖'}, {id:'tc', icon:'↑'}, {id:'tr', icon:'↗'},
+    {id:'ml', icon:'←'}, {id:'mc', icon:'•'}, {id:'mr', icon:'→'},
+    {id:'bl', icon:'↙'}, {id:'bc', icon:'↓'}, {id:'br', icon:'↘'},
+  ];
+  grid.innerHTML = positions.map(p => `
+    <button class="logo-pos-btn${_logoPos===p.id?' active':''}" data-pos="${p.id}"
+      onclick="selectLogoPos('${p.id}')"
+      style="aspect-ratio:1;border:1px solid var(--border);background:${_logoPos===p.id?'var(--accent)':'var(--s2)'};
+        color:${_logoPos===p.id?'#000':'var(--text2)'};cursor:pointer;font-size:14px;
+        display:flex;align-items:center;justify-content:center;transition:.15s">${p.icon}</button>
+  `).join('');
+}
+
+function selectLogoPos(pos){
+  _logoPos = pos;
+  buildLogoPosGrid();
 }
 function exportCfg(){
   const cfg={user:localStorage.getItem('so_user'),name:localStorage.getItem('so_name'),code:syncCode,pin:localStorage.getItem('so_pin'),firebase:JSON.parse(localStorage.getItem('so_fb')||'{}'),exportedAt:new Date().toISOString()};
@@ -2738,9 +3105,55 @@ async function deleteSponsor(sid, name) {
 }
 
 // ══ ESTADÍSTICAS ══════════════════════════════════════════════════════
+async function loadUsageWidget() {
+  const el = ge('usage-content');
+  if (!el) return;
+  try {
+    const today = new Date().toISOString().slice(0,10);
+    const snap = await DB.ref(`sys/${syncCode}/usage/${today}`).once('value');
+    const data = snap.val() || {};
+    const rooms = Object.entries(data);
+    const totalMB = rooms.reduce((sum, [,r]) => sum + (r.mb || 0), 0);
+
+    // Umbral de aviso: con 6 salas a 300MB/día cada una, el máximo teórico
+    // es ~1800MB/día. Avisamos si se acerca a ese límite de seguridad.
+    const SAFE_LIMIT_MB = 1800;
+    const pct = Math.min(100, Math.round(totalMB / SAFE_LIMIT_MB * 100));
+    const alertLevel = pct >= 80 ? 'crit' : pct >= 50 ? 'warn' : 'ok';
+    const color = alertLevel === 'crit' ? 'var(--red)' : alertLevel === 'warn' ? '#ffaa00' : 'var(--green)';
+    const icon  = alertLevel === 'crit' ? '🔴' : alertLevel === 'warn' ? '🟡' : '🟢';
+
+    const roomsList = rooms.length
+      ? rooms.map(([sid, r]) => `<div style="display:flex;justify-content:space-between;padding:3px 0">
+          <span>${esc(SCREENS[sid]?.name || sid)}</span><span>${r.mb} MB</span>
+        </div>`).join('')
+      : '<div style="color:var(--text3)">Sin descargas registradas hoy</div>';
+
+    el.innerHTML = `
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+        <span style="font-size:20px">${icon}</span>
+        <div>
+          <div style="font-size:20px;font-weight:900;color:${color}">${totalMB} MB <span style="font-size:11px;color:var(--text3);font-weight:400">/ ${SAFE_LIMIT_MB} MB seguro</span></div>
+          <div style="font-size:10px;color:var(--text3)">Suma de todas las salas hoy</div>
+        </div>
+      </div>
+      <div style="background:var(--bg);height:6px;border-radius:3px;overflow:hidden;margin-bottom:12px">
+        <div style="width:${pct}%;height:100%;background:${color};transition:width .3s"></div>
+      </div>
+      ${alertLevel==='crit'?'<div style="color:var(--red);font-size:11px;margin-bottom:10px">⚠️ Consumo muy alto — revisa si alguna sala está descargando de más</div>':''}
+      <div style="border-top:1px solid var(--border);padding-top:8px">${roomsList}</div>
+    `;
+  } catch(e) {
+    el.innerHTML = '<span style="color:var(--text3)">No se pudo cargar el consumo</span>';
+  }
+}
+
 async function loadStats() {
   const el = ge('stats-detail');
   el.innerHTML = '<div class="empty"><p>Cargando...</p></div>';
+
+  // Consumo de Cloudinary del día — suma de todas las salas
+  loadUsageWidget();
 
   try {
     const screensSnap = await DB.ref(`sys/${syncCode}/screens`).once('value');
@@ -2824,6 +3237,7 @@ function goPage(name){
     if(name==='eventos')  loadEventsConfig();
     if(name==='pantallas'){ loadScreens(); renderScreens(); }
     if(name==='galerias') renderGalleries();
+    if(name==='ajustes')  { loadCloudinaryCfg(); loadSettingsCfg(); }
   }, 50);
 }
 </script>
