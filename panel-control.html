@@ -298,6 +298,11 @@ textarea.inp{resize:vertical;line-height:1.7}
 .logo-prev img{max-width:100%;max-height:100%;object-fit:contain}
 .logo-prev span{font-family:var(--fm);font-size:11px;color:var(--text3)}
 .logo-pos-btn:hover{border-color:var(--accent) !important}
+
+#ticker-color-grid{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
+.color-swatch{width:30px;height:30px;border:2px solid var(--border);cursor:pointer;flex-shrink:0;transition:.15s}
+.color-swatch:hover{transform:scale(1.1)}
+.color-swatch.active{border-color:#fff;box-shadow:0 0 0 2px var(--accent)}
 .pin-big{font-family:var(--fh);font-size:52px;font-weight:800;color:var(--accent);letter-spacing:.3em;line-height:1;margin-bottom:4px}
 .pin-note{background:var(--s1);border:1px solid var(--border);padding:8px 10px;font-family:var(--fm);font-size:10px;color:var(--text3);line-height:1.8;margin-bottom:14px}
 
@@ -318,6 +323,9 @@ textarea.inp{resize:vertical;line-height:1.7}
 @keyframes tIn{from{opacity:0;transform:translateX(12px)}to{opacity:1;transform:none}}
 /* TICKER */
 .ticker-day-grid{display:grid;grid-template-columns:repeat(7,1fr);border:1px solid var(--border);margin-bottom:0}
+.ticker-color-presets{display:flex;gap:8px;margin-top:12px}
+.color-preset{width:28px;height:28px;border:2px solid var(--border);cursor:pointer;border-radius:3px;transition:.15s}
+.color-preset:hover{transform:scale(1.15);border-color:#fff}
 .tdb{padding:10px 4px;background:transparent;border:none;color:var(--text3);font-family:var(--fm);font-size:11px;cursor:pointer;text-align:center;border-right:1px solid var(--border);transition:.15s}
 .tdb:last-child{border-right:none}.tdb.on{background:var(--accent);color:#000;font-weight:700}.tdb:hover:not(.on){background:var(--s2);color:var(--text)}
 .ticker-box{border:1px solid var(--border);border-top:none;background:var(--s2);padding:20px;margin-bottom:20px}
@@ -810,6 +818,9 @@ textarea.inp{resize:vertical;line-height:1.7}
     </select>
     <div class="lbl">Nombre visible en la TV</div>
     <input class="inp sm" id="cfg-biz-name" placeholder="Recreativos El As">
+    <div class="lbl" style="margin-top:14px">Color del ticker</div>
+    <div id="ticker-color-grid"></div>
+    <input class="inp sm" id="cfg-ticker-color" placeholder="#ffcc00" style="margin-top:8px" oninput="previewTickerColor(this.value)">
     <button class="btn btn-g btn-sm" style="width:100%;margin-top:10px" onclick="saveBizCfg()">Guardar</button>
    </div>
    <div class="set-card">
@@ -879,6 +890,35 @@ textarea.inp{resize:vertical;line-height:1.7}
     </div>
    </div>
    <div style="font-family:var(--fm);font-size:10px;color:var(--text3);margin-top:8px">Usa {temp} para insertar la temperatura actual automáticamente</div>
+  </div>
+
+  <!-- COLORES DEL TICKER -->
+  <div style="background:var(--s2);border:1px solid var(--border);padding:16px;margin-bottom:16px">
+   <div style="font-family:var(--fh);font-size:15px;font-weight:700;margin-bottom:12px">🎨 Colores del ticker</div>
+   <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:end">
+    <div>
+     <div class="lbl">Color de acento (recuadro sala)</div>
+     <div style="display:flex;gap:8px;align-items:center">
+      <input type="color" id="ticker-accent-color" value="#ffcc00" style="width:44px;height:36px;border:1px solid var(--border);background:var(--bg);cursor:pointer;padding:2px" oninput="ge('ticker-accent-hex').value=this.value">
+      <input class="inp sm" id="ticker-accent-hex" value="#ffcc00" style="margin-bottom:0" oninput="syncColorHex('ticker-accent-color',this.value)">
+     </div>
+    </div>
+    <div>
+     <div class="lbl">Color de fondo</div>
+     <div style="display:flex;gap:8px;align-items:center">
+      <input type="color" id="ticker-bg-color" value="#0a0a0a" style="width:44px;height:36px;border:1px solid var(--border);background:var(--bg);cursor:pointer;padding:2px" oninput="ge('ticker-bg-hex').value=this.value">
+      <input class="inp sm" id="ticker-bg-hex" value="#0a0a0a" style="margin-bottom:0" oninput="syncColorHex('ticker-bg-color',this.value)">
+     </div>
+    </div>
+   </div>
+   <div class="ticker-color-presets">
+    <button class="color-preset" style="background:#ffcc00" onclick="applyColorPreset('#ffcc00','#0a0a0a')" title="Amarillo (defecto)"></button>
+    <button class="color-preset" style="background:#00e676" onclick="applyColorPreset('#00e676','#0a0a0a')" title="Verde"></button>
+    <button class="color-preset" style="background:#ff1744" onclick="applyColorPreset('#ff1744','#0a0a0a')" title="Rojo"></button>
+    <button class="color-preset" style="background:#3896ff" onclick="applyColorPreset('#3896ff','#0a0a0a')" title="Azul"></button>
+    <button class="color-preset" style="background:#ff6bd6" onclick="applyColorPreset('#ff6bd6','#1a0a14')" title="Rosa"></button>
+    <button class="color-preset" style="background:#ff8c00" onclick="applyColorPreset('#ff8c00','#1a0f00')" title="Naranja"></button>
+   </div>
   </div>
 
   <!-- SELECTOR DÍA -->
@@ -1277,14 +1317,40 @@ function startApp(user, pin) {
   loadSettingsCfg();
   buildScheduleUI();
   startListeners();
+  // Pedir permiso de notificaciones push (Windows/Chrome)
+  requestNotifPermission();
   // Precargar datos de todas las secciones al arrancar
   setTimeout(() => {
     loadTickerConfig();
     loadEventsConfig();
     loadStats();
     loadRooms();
-    migrateUnassignedFiles(); // migrar archivos sin asignar a COMÚN
+    migrateUnassignedFiles();
   }, 1500);
+}
+
+// Solicitar permiso para notificaciones nativas del sistema operativo
+function requestNotifPermission() {
+  if (!('Notification' in window)) return;
+  if (Notification.permission === 'default') {
+    Notification.requestPermission().then(perm => {
+      if (perm === 'granted') toast('✓ Notificaciones activadas — te avisaremos si una sala se cae', 'ok');
+    });
+  }
+}
+
+// Enviar notificación push nativa del SO
+function pushNotif(title, body, icon) {
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  try {
+    const n = new Notification(title, {
+      body,
+      icon: icon || 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">📺</text></svg>',
+      tag: 'signos-' + title, // evitar notificaciones duplicadas con el mismo tag
+      silent: false,
+    });
+    setTimeout(() => n.close(), 8000); // cerrar automáticamente en 8s
+  } catch(e) {}
 }
 
 // ══ LISTENERS ══════════════════════════════════════════════════════════
@@ -2478,10 +2544,16 @@ setInterval(() => {
     if (elapsed > 300000 && !_alertedScreens.has(sid)) {
       _alertedScreens.add(sid);
       toast(`⚠️ ${name} sin conexión hace ${timeAgo(sc.lastSeen)}`, 'warn');
+      // Notificación push nativa del SO — aparece aunque el panel esté minimizado
+      pushNotif(
+        `⚠️ Sala desconectada: ${name}`,
+        `Lleva sin responder ${timeAgo(sc.lastSeen)}. Comprueba si el PC de la sala está encendido.`
+      );
     }
     if (elapsed < 120000 && _alertedScreens.has(sid)) {
-      _alertedScreens.delete(sid); // volvió — limpiar alerta
+      _alertedScreens.delete(sid);
       toast(`✅ ${name} reconectada`, 'ok');
+      pushNotif(`✅ Sala reconectada: ${name}`, 'La sala ha vuelto a conectarse correctamente.');
     }
   });
 }, 60000); // comprobar cada minuto
@@ -2618,6 +2690,8 @@ async function loadSettingsCfg(){
     _logoPos = meta.logoPos || 'tr';
     if (ge('cfg-logo-size')) ge('cfg-logo-size').value = meta.logoSize || 'medium';
     buildLogoPosGrid();
+    _tickerColor = meta.tickerColor || '#ffcc00';
+    buildTickerColorGrid();
   } catch(e) { console.warn('[settings] No se pudo cargar meta:', e); }
 }
 function setSrv(mode){
@@ -2638,6 +2712,7 @@ async function saveBizCfg(){
       name: gv('cfg-biz-name'),
       logoPos: _logoPos,
       logoSize: gv('cfg-logo-size') || 'medium',
+      tickerColor: _tickerColor,
     });
     toast('Guardado ✓', 'ok');
   } catch(e) { toast('Error: ' + e.message, 'err'); }
@@ -2725,6 +2800,42 @@ function selectLogoPos(pos){
   _logoPos = pos;
   buildLogoPosGrid();
 }
+
+// ── Color del ticker ──────────────────────────────
+let _tickerColor = '#ffcc00'; // amarillo por defecto, el actual del sistema
+const TICKER_COLOR_PRESETS = [
+  { hex:'#ffcc00', name:'Amarillo (original)' },
+  { hex:'#ff6b35', name:'Naranja' },
+  { hex:'#00e676', name:'Verde' },
+  { hex:'#00bcd4', name:'Turquesa' },
+  { hex:'#3896ff', name:'Azul' },
+  { hex:'#a855f7', name:'Morado' },
+  { hex:'#ff1744', name:'Rojo' },
+  { hex:'#ec4899', name:'Rosa' },
+];
+
+function buildTickerColorGrid(){
+  const grid = ge('ticker-color-grid');
+  if (!grid) return;
+  grid.innerHTML = TICKER_COLOR_PRESETS.map(c => `
+    <div class="color-swatch${_tickerColor===c.hex?' active':''}" data-hex="${c.hex}"
+      style="background:${c.hex}" title="${c.name}"
+      onclick="selectTickerColor('${c.hex}')"></div>
+  `).join('');
+  if (ge('cfg-ticker-color')) ge('cfg-ticker-color').value = _tickerColor;
+}
+
+function selectTickerColor(hex){
+  _tickerColor = hex;
+  buildTickerColorGrid();
+}
+
+function previewTickerColor(hex){
+  if (!/^#[0-9a-fA-F]{6}$/.test(hex)) return; // solo aplicar si es un hex válido completo
+  _tickerColor = hex;
+  buildTickerColorGrid();
+}
+
 function exportCfg(){
   const cfg={user:localStorage.getItem('so_user'),name:localStorage.getItem('so_name'),code:syncCode,pin:localStorage.getItem('so_pin'),firebase:JSON.parse(localStorage.getItem('so_fb')||'{}'),exportedAt:new Date().toISOString()};
   const blob=new Blob([JSON.stringify(cfg,null,2)],{type:'application/json'});
@@ -2817,6 +2928,20 @@ function copyTickerToAll() {
   toast('Ticker copiado a todos los días ✓', 'ok');
 }
 
+// Sincroniza el input type=color con su campo de texto hex, y viceversa
+function syncColorHex(colorInputId, hexValue) {
+  if (/^#[0-9a-fA-F]{6}$/.test(hexValue)) {
+    ge(colorInputId).value = hexValue;
+  }
+}
+
+function applyColorPreset(accent, bg) {
+  ge('ticker-accent-color').value = accent;
+  ge('ticker-accent-hex').value   = accent;
+  ge('ticker-bg-color').value     = bg;
+  ge('ticker-bg-hex').value       = bg;
+}
+
 async function saveTickerConfig() {
   try {
     const config = {};
@@ -2827,6 +2952,8 @@ async function saveTickerConfig() {
     const weatherMsg  = ge('weather-msg')  ? gv('weather-msg').trim()  : 'Fuera hace {temp}°C';
     config.weatherCity = weatherCity || 'Almeria';
     config.weatherMsg  = weatherMsg  || 'Fuera hace {temp}°C';
+    config.accentColor = ge('ticker-accent-hex') ? gv('ticker-accent-hex').trim() : '#ffcc00';
+    config.bgColor      = ge('ticker-bg-hex')     ? gv('ticker-bg-hex').trim()     : '#0a0a0a';
     config.updatedAt   = Date.now();
 
     console.log('[ticker] Guardando:', JSON.stringify(config).substring(0, 200));
@@ -2855,6 +2982,8 @@ async function loadTickerConfig() {
       });
       if (data.weatherCity) sv('weather-city', data.weatherCity);
       if (data.weatherMsg)  sv('weather-msg',  data.weatherMsg);
+      if (data.accentColor) { sv('ticker-accent-hex', data.accentColor); if(ge('ticker-accent-color')) ge('ticker-accent-color').value = data.accentColor; }
+      if (data.bgColor)     { sv('ticker-bg-hex', data.bgColor);         if(ge('ticker-bg-color'))     ge('ticker-bg-color').value     = data.bgColor; }
     }
   } catch(e) { console.warn('loadTicker:', e); }
   renderTickerMsgs();
