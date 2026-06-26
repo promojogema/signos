@@ -1832,21 +1832,37 @@ function dateInRange(today, from, to) {
 // ════════════════════════════════════════════════════
 const FX_CFGS = {
   // Existentes
-  snow:      { emojis:['❄','❅','❆'],           count:60, vy:[0.5,1.5], vx:[-0.3,0.3] },
-  hearts:    { emojis:['💕','❤️','💖'],         count:30, vy:[0.4,1.0], vx:[-0.5,0.5] },
-  skulls:    { emojis:['💀','🎃','👻'],         count:25, vy:[0.5,1.2], vx:[-0.4,0.4] },
-  fireworks: { emojis:['✨','🎆','⭐'],         count:40, vy:[0.5,1.4], vx:[-0.6,0.6] },
-  stars:     { emojis:['⭐','🌟','✨'],         count:50, vy:[0.4,1.0], vx:[-0.4,0.4] },
-  coins:     { emojis:['🪙','💰','💵'],         count:40, vy:[1.5,3.0], vx:[-0.2,0.2] },
-  // Nuevos
-  confetti:  { emojis:['🎊','🎉','🥳','🎈'],   count:70, vy:[1.0,2.5], vx:[-1.0,1.0] },
-  petals:    { emojis:['🌸','🌺','🌹','🌷'],   count:35, vy:[0.3,0.8], vx:[-0.8,0.8] },
-  bubbles:   { emojis:['🫧','⭕','🔵','🟡'],   count:25, vy:[-1.5,-0.5], vx:[-0.3,0.3] }, // suben
-  leaves:    { emojis:['🍂','🍁','🍃','🌿'],   count:30, vy:[0.4,1.2], vx:[-0.6,0.6] },
-  music:     { emojis:['🎵','🎶','🎼','🎸'],   count:25, vy:[0.3,0.9], vx:[-0.5,0.5] },
-  food:      { emojis:['🍕','🍔','🌮','🍟'],   count:20, vy:[1.0,2.0], vx:[-0.3,0.3] },
-  sports:    { emojis:['⚽','🏀','🎾','🏈'],   count:20, vy:[1.2,2.5], vx:[-0.5,0.5] },
-  summer:    { emojis:['☀️','🌊','🏖️','🌴'],  count:25, vy:[0.3,0.8], vx:[-0.4,0.4] },
+  snow:      { emojis:['❄','❅','❆'],              count:60, vy:[0.5,1.5],  vx:[-0.3,0.3] },
+  hearts:    { emojis:['💕','❤️','💖'],            count:30, vy:[0.4,1.0],  vx:[-0.5,0.5] },
+  skulls:    { emojis:['💀','🎃','👻'],            count:25, vy:[0.5,1.2],  vx:[-0.4,0.4] },
+  fireworks: { emojis:['✨','🎆','⭐'],            count:40, vy:[0.5,1.4],  vx:[-0.6,0.6] },
+  stars:     { emojis:['⭐','🌟','✨'],            count:50, vy:[0.4,1.0],  vx:[-0.4,0.4] },
+  coins:     { emojis:['🪙','💰','💵'],            count:40, vy:[1.5,3.0],  vx:[-0.2,0.2] },
+  confetti:  { emojis:['🎊','🎉','🥳','🎈'],      count:70, vy:[1.0,2.5],  vx:[-1.0,1.0] },
+  petals:    { emojis:['🌸','🌺','🌹','🌷'],      count:35, vy:[0.3,0.8],  vx:[-0.8,0.8] },
+  bubbles:   { emojis:['🫧','⭕','🔵','🟡'],      count:25, vy:[-1.5,-0.5],vx:[-0.3,0.3] },
+  leaves:    { emojis:['🍂','🍁','🍃','🌿'],      count:30, vy:[0.4,1.2],  vx:[-0.6,0.6] },
+  music:     { emojis:['🎵','🎶','🎼','🎸'],      count:25, vy:[0.3,0.9],  vx:[-0.5,0.5] },
+  food:      { emojis:['🍕','🍔','🌮','🍟'],      count:20, vy:[1.0,2.0],  vx:[-0.3,0.3] },
+  sports:    { emojis:['⚽','🏀','🎾','🏈'],      count:20, vy:[1.2,2.5],  vx:[-0.5,0.5] },
+  summer:    { emojis:['☀️','🌊','🏖️','🌴'],     count:25, vy:[0.3,0.8],  vx:[-0.4,0.4] },
+  // ── NUEVOS ─────────────────────────────────────────────────────────────
+  // 🎰 Tragaperras — perfectos para recreativos
+  slots:     { emojis:['🎰','🃏','🎲','🎯','♠️','♥️','🍒','7️⃣'], count:35, vy:[1.0,2.5], vx:[-0.4,0.4] },
+  // 🎮 Gaming — mandos y símbolos de videojuegos
+  gaming:    { emojis:['🎮','🕹️','👾','🏆','⚡','💥','🔫','🎯'], count:30, vy:[0.5,1.8], vx:[-0.6,0.6] },
+  // 🍺 Bebidas — ambiente de bar
+  drinks:    { emojis:['🍺','🍻','🥂','🍹','🥃','🍸','🎊'],      count:25, vy:[0.6,1.5], vx:[-0.5,0.5] },
+  // 🤑 Billetes — sorteos y promociones (caen rápido como los coins)
+  bills:     { emojis:['💵','💴','💶','💷','🤑','💸'],            count:45, vy:[1.8,3.5], vx:[-0.3,0.3] },
+  // 💎 Diamantes y joyas — eventos elegantes
+  diamonds:  { emojis:['💎','💍','✨','🌟','💫','🔷','🔹'],       count:35, vy:[0.8,2.0], vx:[-0.4,0.4] },
+  // 🌈 Arcoíris — burbujas de colores mezclados (suben)
+  rainbow:   { emojis:['🌈','🔴','🟠','🟡','🟢','🔵','🟣'],      count:30, vy:[-1.2,-0.4],vx:[-0.4,0.4] },
+  // 🎸 Rock — guitarras y relámpagos
+  rock:      { emojis:['🎸','⚡','🤘','🎵','💥','🔥','🎤'],       count:25, vy:[0.5,1.5], vx:[-0.7,0.7] },
+  // ✨ Purpurina — destellos brillantes
+  glitter:   { emojis:['✨','💫','⭐','🌟','💥','🔆','🌠'],       count:80, vy:[0.4,1.8], vx:[-0.8,0.8] },
   none:      null,
 };
 
@@ -1856,6 +1872,10 @@ const FX_NAMES = {
   coins: '¡Sorteo activo!', confetti: '¡Celebración!', petals: '¡Primavera!',
   bubbles: '¡Burbujas!', leaves: '¡Otoño!', music: '¡Música!',
   food: '¡Comida!', sports: '¡Deportes!', summer: '¡Verano!',
+  // Nuevos
+  slots: '¡Tragaperras!', gaming: '¡Game On!', drinks: '¡Salud!',
+  bills: '¡Lluvia de billetes!', diamonds: '¡Noche elegante!',
+  rainbow: '¡Arcoíris!', rock: '¡Rock & Roll!', glitter: '¡Purpurina!',
 };
 
 function showFxAnnouncement(type, cfg) {

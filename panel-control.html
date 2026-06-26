@@ -967,12 +967,38 @@ textarea.inp{resize:vertical;line-height:1.7}
      <div class="lbl">Efecto visual en TV</div>
      <select class="inp sm" id="ev-effect">
       <option value="none">Sin efecto</option>
-      <option value="coins">🪙 Lluvia de monedas</option>
-      <option value="stars">⭐ Lluvia de estrellas</option>
+      <optgroup label="── Clásicos ──">
       <option value="snow">❄️ Nieve</option>
+      <option value="stars">⭐ Estrellas</option>
       <option value="hearts">💕 Corazones</option>
       <option value="fireworks">🎆 Fuegos artificiales</option>
       <option value="skulls">💀 Calaveras</option>
+      <option value="confetti">🎊 Confeti</option>
+      <option value="petals">🌸 Pétalos</option>
+      <option value="leaves">🍂 Hojas</option>
+      <option value="bubbles">🫧 Burbujas</option>
+      </optgroup>
+      <optgroup label="── Recreativos ──">
+      <option value="coins">🪙 Monedas</option>
+      <option value="bills">💵 Billetes</option>
+      <option value="slots">🎰 Tragaperras</option>
+      <option value="gaming">🎮 Gaming</option>
+      </optgroup>
+      <optgroup label="── Bar y fiestas ──">
+      <option value="drinks">🍺 Bebidas</option>
+      <option value="rock">🎸 Rock</option>
+      <option value="music">🎵 Música</option>
+      </optgroup>
+      <optgroup label="── Elegante ──">
+      <option value="diamonds">💎 Diamantes</option>
+      <option value="glitter">✨ Purpurina</option>
+      <option value="rainbow">🌈 Arcoíris</option>
+      </optgroup>
+      <optgroup label="── Otros ──">
+      <option value="sports">⚽ Deportes</option>
+      <option value="food">🍕 Comida</option>
+      <option value="summer">☀️ Verano</option>
+      </optgroup>
      </select>
     </div>
    </div>
@@ -3027,13 +3053,29 @@ function renderEvents() {
     const effectSelector = `<div style="margin-top:8px">
       <select class="inp sm" style="font-size:10px;padding:4px 8px"
         onchange="setEventEffect('${ev.id}',this.value)">
-        <option value="none"     ${effect==='none'    ?'selected':''}>Sin efecto</option>
-        <option value="coins"    ${effect==='coins'   ?'selected':''}>🪙 Monedas</option>
-        <option value="stars"    ${effect==='stars'   ?'selected':''}>⭐ Estrellas</option>
-        <option value="snow"     ${effect==='snow'    ?'selected':''}>❄️ Nieve</option>
-        <option value="hearts"   ${effect==='hearts'  ?'selected':''}>💕 Corazones</option>
-        <option value="fireworks"${effect==='fireworks'?'selected':''}>🎆 Fuegos</option>
-        <option value="skulls"   ${effect==='skulls'  ?'selected':''}>💀 Calaveras</option>
+        <option value="none"      ${effect==='none'     ?'selected':''}>Sin efecto</option>
+        <option value="snow"      ${effect==='snow'     ?'selected':''}>❄️ Nieve</option>
+        <option value="stars"     ${effect==='stars'    ?'selected':''}>⭐ Estrellas</option>
+        <option value="hearts"    ${effect==='hearts'   ?'selected':''}>💕 Corazones</option>
+        <option value="fireworks" ${effect==='fireworks'?'selected':''}>🎆 Fuegos</option>
+        <option value="skulls"    ${effect==='skulls'   ?'selected':''}>💀 Calaveras</option>
+        <option value="confetti"  ${effect==='confetti' ?'selected':''}>🎊 Confeti</option>
+        <option value="petals"    ${effect==='petals'   ?'selected':''}>🌸 Pétalos</option>
+        <option value="leaves"    ${effect==='leaves'   ?'selected':''}>🍂 Hojas</option>
+        <option value="bubbles"   ${effect==='bubbles'  ?'selected':''}>🫧 Burbujas</option>
+        <option value="coins"     ${effect==='coins'    ?'selected':''}>🪙 Monedas</option>
+        <option value="bills"     ${effect==='bills'    ?'selected':''}>💵 Billetes</option>
+        <option value="slots"     ${effect==='slots'    ?'selected':''}>🎰 Tragaperras</option>
+        <option value="gaming"    ${effect==='gaming'   ?'selected':''}>🎮 Gaming</option>
+        <option value="drinks"    ${effect==='drinks'   ?'selected':''}>🍺 Bebidas</option>
+        <option value="rock"      ${effect==='rock'     ?'selected':''}>🎸 Rock</option>
+        <option value="music"     ${effect==='music'    ?'selected':''}>🎵 Música</option>
+        <option value="diamonds"  ${effect==='diamonds' ?'selected':''}>💎 Diamantes</option>
+        <option value="glitter"   ${effect==='glitter'  ?'selected':''}>✨ Purpurina</option>
+        <option value="rainbow"   ${effect==='rainbow'  ?'selected':''}>🌈 Arcoíris</option>
+        <option value="sports"    ${effect==='sports'   ?'selected':''}>⚽ Deportes</option>
+        <option value="food"      ${effect==='food'     ?'selected':''}>🍕 Comida</option>
+        <option value="summer"    ${effect==='summer'   ?'selected':''}>☀️ Verano</option>
       </select>
     </div>`;
 
