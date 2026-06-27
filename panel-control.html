@@ -303,6 +303,9 @@ textarea.inp{resize:vertical;line-height:1.7}
 .color-swatch{width:30px;height:30px;border:2px solid var(--border);cursor:pointer;flex-shrink:0;transition:.15s}
 .color-swatch:hover{transform:scale(1.1)}
 .color-swatch.active{border-color:#fff;box-shadow:0 0 0 2px var(--accent)}
+.theme-btn{border:2px solid var(--border);overflow:hidden;transition:.15s}
+.theme-btn.active-theme{border-color:var(--accent)}
+.theme-btn:hover{border-color:var(--text2)}
 .pin-big{font-family:var(--fh);font-size:52px;font-weight:800;color:var(--accent);letter-spacing:.3em;line-height:1;margin-bottom:4px}
 .pin-note{background:var(--s1);border:1px solid var(--border);padding:8px 10px;font-family:var(--fm);font-size:10px;color:var(--text3);line-height:1.8;margin-bottom:14px}
 
@@ -821,6 +824,23 @@ textarea.inp{resize:vertical;line-height:1.7}
     <div class="lbl" style="margin-top:14px">Color del ticker</div>
     <div id="ticker-color-grid"></div>
     <input class="inp sm" id="cfg-ticker-color" placeholder="#ffcc00" style="margin-top:8px" oninput="previewTickerColor(this.value)">
+    <div class="lbl" style="margin-top:14px">Tema del ticker</div>
+    <div style="display:flex;gap:10px;margin-top:6px">
+      <label style="flex:1;cursor:pointer">
+        <input type="radio" name="ticker-theme" id="ticker-theme-dark" value="dark" checked onchange="selectTickerTheme('dark')" style="display:none">
+        <div id="theme-dark-btn" class="theme-btn active-theme">
+          <div style="background:#000;color:#ffcc00;padding:8px;text-align:center;font-size:11px;font-weight:700">🌙 Oscuro</div>
+          <div style="background:#000;height:4px;border-top:2px solid #ffcc00"></div>
+        </div>
+      </label>
+      <label style="flex:1;cursor:pointer">
+        <input type="radio" name="ticker-theme" id="ticker-theme-light" value="light" onchange="selectTickerTheme('light')" style="display:none">
+        <div id="theme-light-btn" class="theme-btn">
+          <div style="background:#fff;color:#111;padding:8px;text-align:center;font-size:11px;font-weight:700;border:1px solid #eee">☀️ Claro</div>
+          <div style="background:#fff;height:4px;border-top:2px solid #ffcc00;border:1px solid #eee"></div>
+        </div>
+      </label>
+    </div>
     <button class="btn btn-g btn-sm" style="width:100%;margin-top:10px" onclick="saveBizCfg()">Guardar</button>
    </div>
    <div class="set-card">
@@ -1002,8 +1022,23 @@ textarea.inp{resize:vertical;line-height:1.7}
      </select>
     </div>
    </div>
-   <div style="margin-top:10px"><div class="lbl">Mensaje ticker especial (opcional)</div><input class="inp sm" id="ev-msg" placeholder="🎁 HOY DÍA DEL PADRE · INVITAMOS A UNA CONSUMICIÓN"></div>
-   <button class="btn btn-sm" style="margin-top:4px;width:auto;padding:10px 24px" onclick="saveCustomEvent()">Crear evento →</button>
+   <div style="margin-top:10px">
+    <div class="lbl">Mensaje cuando el evento está activo (opcional)</div>
+    <input class="inp sm" id="ev-msg" placeholder="🎁 HOY DÍA DEL PADRE · INVITAMOS A UNA CONSUMICIÓN" oninput="updateEvPreview()">
+   </div>
+   <div style="margin-top:10px">
+    <div class="lbl">Mensaje para la cuenta atrás — sale 30 días antes (opcional)</div>
+    <input class="inp sm" id="ev-countdown-msg" placeholder="¡Apúntate al sorteo! · Pregunta al camarero" oninput="updateEvPreview()">
+   </div>
+
+   <!-- Vista previa del ticker -->
+   <div id="ev-preview-box" style="display:none;margin-top:14px;background:var(--bg);border:1px solid var(--border);padding:12px">
+    <div class="lbl" style="margin-bottom:6px">Vista previa en el ticker</div>
+    <div id="ev-preview-countdown" style="font-family:'Courier New',monospace;font-size:11px;color:var(--accent);margin-bottom:4px"></div>
+    <div id="ev-preview-active" style="font-family:'Courier New',monospace;font-size:11px;color:#aaa"></div>
+   </div>
+
+   <button class="btn btn-sm" style="margin-top:12px;width:auto;padding:10px 24px" onclick="saveCustomEvent()">Crear evento →</button>
   </div>
  </div>
 
@@ -2718,6 +2753,8 @@ async function loadSettingsCfg(){
     buildLogoPosGrid();
     _tickerColor = meta.tickerColor || '#ffcc00';
     buildTickerColorGrid();
+    _tickerTheme = meta.tickerTheme || 'dark';
+    selectTickerTheme(_tickerTheme);
   } catch(e) { console.warn('[settings] No se pudo cargar meta:', e); }
 }
 function setSrv(mode){
@@ -2739,6 +2776,7 @@ async function saveBizCfg(){
       logoPos: _logoPos,
       logoSize: gv('cfg-logo-size') || 'medium',
       tickerColor: _tickerColor,
+      tickerTheme: _tickerTheme,
     });
     toast('Guardado ✓', 'ok');
   } catch(e) { toast('Error: ' + e.message, 'err'); }
@@ -2839,6 +2877,14 @@ const TICKER_COLOR_PRESETS = [
   { hex:'#ff1744', name:'Rojo' },
   { hex:'#ec4899', name:'Rosa' },
 ];
+
+let _tickerTheme = 'dark'; // 'dark' | 'light'
+
+function selectTickerTheme(theme) {
+  _tickerTheme = theme;
+  ge('theme-dark-btn')?.classList.toggle('active-theme', theme === 'dark');
+  ge('theme-light-btn')?.classList.toggle('active-theme', theme === 'light');
+}
 
 function buildTickerColorGrid(){
   const grid = ge('ticker-color-grid');
@@ -3132,24 +3178,49 @@ async function deleteCustomEvent(id) {
   toast('Evento eliminado','info');
 }
 
+function updateEvPreview() {
+  const name  = gv('ev-name').trim();
+  const emoji = gv('ev-emoji').trim() || '🎉';
+  const from  = gv('ev-from').trim();
+  const to    = gv('ev-to').trim();
+  const msg   = gv('ev-msg').trim();
+  const cdMsg = gv('ev-countdown-msg').trim();
+
+  const box = ge('ev-preview-box');
+  if (!box) return;
+  if (!name && !from && !to) { box.style.display = 'none'; return; }
+  box.style.display = 'block';
+
+  const dispName = (name || 'EVENTO').toUpperCase();
+  const countdownText = `${emoji} ${dispName} · Quedan X días${cdMsg ? ' · ' + cdMsg : ''}`;
+  const activeText    = msg
+    ? `${emoji} ${dispName} · ${msg}`
+    : `${emoji} ${dispName} (sin mensaje especial al estar activo)`;
+
+  ge('ev-preview-countdown').innerHTML = `<b>30 días antes → día del evento:</b><br>"${countdownText}"`;
+  ge('ev-preview-active').innerHTML    = `<b>Cuando el evento esté activo:</b><br>"${activeText}"`;
+}
+
 async function saveCustomEvent() {
   const name   = gv('ev-name').trim();
   const emoji  = gv('ev-emoji').trim() || '🎉';
   const from   = gv('ev-from').trim();
   const to     = gv('ev-to').trim();
   const msg    = gv('ev-msg').trim();
+  const cdMsg  = gv('ev-countdown-msg').trim();
   const effect = gv('ev-effect') || 'none';
 
   if (!name||!from||!to) { toast('Rellena nombre y fechas','warn'); return; }
 
-  const newEv = {id:'custom_'+Date.now(), name, emoji, from, to, msg, effect, custom:true};
+  const newEv = {id:'custom_'+Date.now(), name, emoji, from, to, msg, countdownMsg: cdMsg, effect, custom:true};
   if (!EVENTS_CONFIG._custom) EVENTS_CONFIG._custom = [];
   EVENTS_CONFIG._custom.push(newEv);
   await saveEventsConfig();
   renderEvents();
   toast(`Evento "${name}" creado ✓`,'ok');
-  ['ev-name','ev-emoji','ev-from','ev-to','ev-msg'].forEach(id=>{const e=ge(id);if(e)e.value='';});
-  ge('ev-effect').value = 'none'; // reset selector
+  ['ev-name','ev-emoji','ev-from','ev-to','ev-msg','ev-countdown-msg'].forEach(id=>{const e=ge(id);if(e)e.value='';});
+  ge('ev-effect').value = 'none';
+  ge('ev-preview-box').style.display = 'none';
 }
 
 async function saveEventsConfig() {

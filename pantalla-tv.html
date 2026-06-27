@@ -91,8 +91,15 @@
       position:absolute;inset:0;width:100%;height:100%;
       opacity:0;transition:opacity .9s ease-in-out;
     }
-    #vid{ object-fit:cover; }              /* vídeo llena la pantalla */
-    #img,#img2{ object-fit:contain; background:#000; } /* foto completa, con bandas si hace falta */
+    #vid{ object-fit:cover; }
+    #img,#img2{ object-fit:contain; background:transparent; position:relative;z-index:2; }
+    /* Fondo borroso con los colores de la foto */
+    #img-bg{
+      position:absolute;inset:0;width:100%;height:100%;
+      object-fit:cover;opacity:0;filter:blur(28px) brightness(.55) saturate(1.3);
+      transform:scale(1.08);transition:opacity .9s ease;z-index:1;
+    }
+    #img-bg.show{opacity:1;}
 
     /* ── URGENTE ───────────────────────────────────── */
     #urgent-overlay{
@@ -109,13 +116,20 @@
     #urg-timer{font-size:18px;color:rgba(255,255,255,.5);font-family:'Courier New',monospace;}
 
     /* ── TICKER ────────────────────────────────────── */
+    /* Variables del ticker — modificables desde el panel */
+    :root {
+      --ticker-bg:    rgba(0,0,0,.97);
+      --ticker-text:  #ffffff;
+      --ticker-border: var(--accent);
+    }
     #ticker{
       position:fixed;bottom:0;left:0;right:0;height:74px;
-      background:linear-gradient(180deg, rgba(10,10,10,.85) 0%, rgba(0,0,0,.97) 100%);
+      background:linear-gradient(180deg, rgba(10,10,10,.85) 0%, var(--ticker-bg) 100%);
       backdrop-filter:blur(6px);
       display:flex;align-items:center;
-      z-index:100;border-top:3px solid var(--accent);
+      z-index:100;border-top:3px solid var(--ticker-border);
       box-shadow:0 -8px 24px rgba(0,0,0,.4);
+      transition:background .5s, border-color .5s;
     }
     #ticker-logo{
       background:linear-gradient(135deg, var(--accent), #e6b800);
@@ -141,8 +155,10 @@
     #ticker-text{
       display:inline-block;font-size:27px;font-weight:700;
       padding-left:100%;white-space:nowrap;letter-spacing:.01em;
-      text-shadow:0 1px 3px rgba(0,0,0,.6);
+      color:var(--ticker-text);
+      text-shadow:0 1px 3px rgba(0,0,0,.3);
       animation:tickerScroll 40s linear infinite;
+      transition:color .5s;
     }
     @keyframes tickerScroll{from{transform:translateX(0);}to{transform:translateX(-100%);}}
     #ticker-clock{
@@ -268,8 +284,9 @@
 <!-- PLAYER -->
 <div id="player">
   <video id="vid" playsinline></video>
+  <img   id="img-bg" draggable="false" alt="" aria-hidden="true">
   <img   id="img"  draggable="false" alt="">
-  <img   id="img2" draggable="false" alt="" style="z-index:1">
+  <img   id="img2" draggable="false" alt="" style="z-index:2">
   <audio id="aud" style="display:none"></audio>
 </div>
 
@@ -585,6 +602,7 @@ async function loadCfg() {
       if (meta.name) { bizName = meta.name; ge('sb-name').textContent = bizName; }
       applyLogo(meta.logoUrl, meta.logoPos, meta.logoSize);
       applyAccentColor(meta.tickerColor);
+      applyTickerTheme(meta.tickerTheme);
     }
     // Escuchar cambios en vivo (si cambias el logo o color desde el panel, se actualiza sin recargar)
     DB.ref(`sys/${sysCode}/meta`).on('value', snap => {
@@ -593,15 +611,41 @@ async function loadCfg() {
       if (meta.name) bizName = meta.name;
       applyLogo(meta.logoUrl, meta.logoPos, meta.logoSize);
       applyAccentColor(meta.tickerColor);
+      applyTickerTheme(meta.tickerTheme);
     });
   } catch(e){}
 }
 
-// Cambia el color principal del ticker (y de paso, cualquier elemento que
-// use var(--accent)) sin necesidad de recargar la página
+// Cambia el color principal y el tema del ticker sin recargar
 function applyAccentColor(color) {
   if (!color) return;
   document.documentElement.style.setProperty('--accent', color);
+}
+
+// Aplica el tema claro u oscuro del ticker
+function applyTickerTheme(theme) {
+  const root = document.documentElement;
+  if (theme === 'light') {
+    root.style.setProperty('--ticker-bg',    'rgba(255,255,255,.97)');
+    root.style.setProperty('--ticker-text',  '#111111');
+    root.style.setProperty('--ticker-border','var(--accent)');
+    // Logo de sala — invertir colores
+    const logo = ge('ticker-logo');
+    if (logo) {
+      logo.style.background = 'linear-gradient(135deg, #111, #333)';
+      logo.style.color = '#ffcc00';
+    }
+  } else {
+    // Oscuro (por defecto)
+    root.style.setProperty('--ticker-bg',    'rgba(0,0,0,.97)');
+    root.style.setProperty('--ticker-text',  '#ffffff');
+    root.style.setProperty('--ticker-border','var(--accent)');
+    const logo = ge('ticker-logo');
+    if (logo) {
+      logo.style.background = '';
+      logo.style.color = '';
+    }
+  }
 }
 
 // Posiciona el logo del negocio en una de las 9 zonas de la pantalla
@@ -1281,8 +1325,10 @@ function playItem(idx) {
   const aud = ge('aud');
 
   if (kind === 'video') {
-    // Vídeo: pausar música y activar flag para que no se reinicie
+    // Vídeo: pausar música y ocultar fondo borroso de foto anterior
     _videoPlaying = true;
+    const bg = ge('img-bg');
+    if (bg) { bg.classList.remove('show'); bg.removeAttribute('src'); }
     try { MUSIC_EL.pause(); } catch(e) {}
     aud.pause();    vid.volume = currentVol / 100;
     vid.muted  = false;
@@ -1336,11 +1382,16 @@ function playItem(idx) {
     // y formato WebP si el navegador lo soporta — reduce consumo sin perder calidad visual
     const optimizedUrl = optimizeCloudinaryUrl(item.url);
     tmp.onload = () => {
+      // Activar fondo borroso con los colores de la foto
+      const bg = ge('img-bg');
+      if (bg) {
+        bg.src = item.url; // URL sin optimizar para el bg (no importa la calidad)
+        bg.classList.add('show');
+      }
       // Crossfade: img2 carga la nueva imagen mientras img sigue visible
       img2El.src = optimizedUrl;
-      img2El.style.opacity = 1;   // nueva imagen aparece suavemente
-      img.style.opacity  = 0;     // imagen anterior se desvanece
-      // Tras la transición (1s) intercambiar roles para el próximo crossfade
+      img2El.style.opacity = 1;
+      img.style.opacity  = 0;
       setTimeout(() => {
         img.src = optimizedUrl;
         img.style.opacity  = 1;
@@ -1639,22 +1690,23 @@ function getEventCountdowns() {
     if (daysToStart > 0 && daysToStart <= 30) {
       const emoji = ev.emoji || '📅';
       const name  = ev.name  || 'Evento';
-      results.push(`${emoji} ${name.toUpperCase()} · Quedan ${daysToStart} día${daysToStart>1?'s':''}`);
+      const extra = ev.countdownMsg ? ' · ' + ev.countdownMsg : '';
+      results.push(`${emoji} ${name.toUpperCase()} · Quedan ${daysToStart} día${daysToStart>1?'s':''}${extra}`);
       return;
     }
 
     // Evento activo hoy con fecha fin próxima
     const isActive = fromDoy <= todayDoy && todayDoy <= toDoy;
-    const isWrapped = fromDoy > toDoy && (todayDoy >= fromDoy || todayDoy <= toDoy); // cruza año nuevo
+    const isWrapped = fromDoy > toDoy && (todayDoy >= fromDoy || todayDoy <= toDoy);
 
     if ((isActive || isWrapped) && daysToEnd >= 0 && daysToEnd <= 30) {
       const emoji = ev.emoji || '📅';
       const name  = ev.name  || 'Evento';
-      const msg   = (cfg.effect !== 'none' && ev.msg) ? ' · ' + ev.msg : '';
+      const extra = ev.countdownMsg ? ' · ' + ev.countdownMsg : (ev.msg ? ' · ' + ev.msg : '');
       if (daysToEnd === 0) {
-        results.push(`${emoji} ${name.toUpperCase()} · ¡Hoy es el último día!${msg}`);
+        results.push(`${emoji} ${name.toUpperCase()} · ¡Hoy es el último día!${extra}`);
       } else {
-        results.push(`${emoji} ${name.toUpperCase()} · Quedan ${daysToEnd} día${daysToEnd>1?'s':''}${msg}`);
+        results.push(`${emoji} ${name.toUpperCase()} · Quedan ${daysToEnd} día${daysToEnd>1?'s':''}${extra}`);
       }
     }
   });
@@ -1984,7 +2036,7 @@ async function fetchWeather() {
         const w = shared.val();
         const age = Date.now() - (w.updatedAt || 0);
         if (w.city === city && age < 20 * 60000 && typeof w.temp === 'number') {
-          applyWeather(w.temp);
+          applyWeather(w.temp, w.wcode || 0);
           return; // usamos el dato compartido, no llamamos a la API
         }
       }
@@ -1999,18 +2051,34 @@ async function fetchWeather() {
     const wd   = await wRes.json();
     if (wd.current_weather) {
       const temp = Math.round(wd.current_weather.temperature);
-      applyWeather(temp);
+      const wcode = wd.current_weather.weathercode || 0;
+      applyWeather(temp, wcode);
       // Compartir para que el resto de salas no tengan que consultar la API
-      DB.ref(`sys/${sysCode}/weather`).set({ temp, city, updatedAt: Date.now() }).catch(()=>{});
+      DB.ref(`sys/${sysCode}/weather`).set({ temp, wcode: wd.current_weather.weathercode || 0, city, updatedAt: Date.now() }).catch(()=>{});
     }
   } catch(e) { console.warn('[weather]', e); }
 }
 
-function applyWeather(temp) {
+function applyWeather(temp, wcode) {
   weatherTemp = temp;
   const el = ge('ticker-temp');
   if (el) {
-    el.textContent = temp + '°';
+    // Icono según código WMO de Open-Meteo
+    let icon = '🌡';
+    if (wcode === 0)                          icon = '☀️';   // despejado
+    else if (wcode <= 3)                      icon = '🌤';   // parcialmente nublado
+    else if (wcode <= 49)                     icon = '🌫';   // niebla
+    else if (wcode <= 67)                     icon = '🌧';   // lluvia
+    else if (wcode <= 77)                     icon = '❄️';   // nieve
+    else if (wcode <= 82)                     icon = '🌦';   // chubascos
+    else if (wcode <= 99)                     icon = '⛈';   // tormenta
+    else if (temp >= 35)                      icon = '🥵';   // calor extremo
+    else if (temp >= 28)                      icon = '☀️';
+    else if (temp >= 15)                      icon = '🌤';
+    else if (temp >= 5)                       icon = '🌥';
+    else                                      icon = '🥶';   // frío extremo
+
+    el.innerHTML = `<span style="font-size:20px;display:block;line-height:1">${icon}</span>${temp}°`;
     el.style.color = temp >= 30 ? '#ff6b35'
                     : temp >= 20 ? '#ffcc00'
                     : temp >= 10 ? '#00e5ff'
