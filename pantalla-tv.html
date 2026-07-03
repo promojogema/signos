@@ -92,7 +92,20 @@
       opacity:0;transition:opacity .9s ease-in-out;
     }
     #vid{ object-fit:cover; }
-    #img,#img2{ object-fit:contain; background:transparent; position:relative;z-index:2; }
+    #img,#img2{
+      object-fit:contain; background:transparent;
+      position:relative; z-index:2;
+    }
+    #img.kenburns  { animation: kb1 var(--kb-dur,12s) ease-in-out forwards; }
+    #img2.kenburns { animation: kb2 var(--kb-dur,12s) ease-in-out forwards; }
+    @keyframes kb1 {
+      0%   { transform: scale(1)    translate(0,0); }
+      100% { transform: scale(1.06) translate(-1.5%,-1%); }
+    }
+    @keyframes kb2 {
+      0%   { transform: scale(1.06) translate(1.5%, 1%); }
+      100% { transform: scale(1)    translate(0,0); }
+    }
     /* Fondo borroso con los colores de la foto */
     #img-bg{
       position:absolute;inset:0;width:100%;height:100%;
@@ -290,6 +303,19 @@
   <audio id="aud" style="display:none"></audio>
 </div>
 
+<!-- SIN CONTENIDO -->
+<div id="no-content-screen" style="display:none;position:fixed;inset:0;z-index:150;
+  background:radial-gradient(ellipse at 50% 40%,#0a0f1a 0%,#000 100%);
+  flex-direction:column;align-items:center;justify-content:center;text-align:center">
+  <div style="font-size:56px;margin-bottom:20px;opacity:.3">📺</div>
+  <div id="no-content-name" style="font-family:'Arial Black',sans-serif;font-size:36px;
+    font-weight:900;color:var(--accent);letter-spacing:-1px;margin-bottom:8px"></div>
+  <div id="no-content-msg" style="font-family:'Courier New',monospace;font-size:12px;
+    color:#333;letter-spacing:.2em;margin-bottom:40px">SIN CONTENIDO PROGRAMADO</div>
+  <div id="no-content-next" style="font-family:'Courier New',monospace;font-size:11px;
+    color:#222;letter-spacing:.1em"></div>
+</div>
+
 <!-- URGENTE -->
 <div id="urgent-overlay">
   <div id="urg-icon">🚨</div>
@@ -484,12 +510,39 @@ function showStandby() {
   const displayName = (bizName && bizName !== 'undefined') ? bizName : 'SIGN.OS';
   ge('sb-name').textContent = displayName;
 }
+function showNoContentScreen() {
+  const p = ge('player');
+  if (p) { p.classList.remove('fade-in'); p.style.display='none'; }
+  ge('standby-screen').style.display = 'none';
+  const el = ge('no-content-screen');
+  if (!el) return;
+  el.style.display = 'flex';
+  const nameEl = ge('no-content-name');
+  if (nameEl) nameEl.textContent = (bizName && bizName !== 'undefined') ? bizName : 'SIGN.OS';
+  const nextEl = ge('no-content-next');
+  if (nextEl && _playlists) {
+    const { day } = getNowDayFranja();
+    const franjas = ['manana','mediodia','tarde','noche'];
+    const names   = { manana:'Mañana 9h', mediodia:'Mediodía 14h', tarde:'Tarde 17h', noche:'Noche 22h' };
+    const nextF = franjas.find(f => {
+      const pl = _playlists?.[day]?.[f];
+      return pl && Object.keys(pl).length > 0;
+    });
+    nextEl.textContent = nextF ? `Próximo contenido: ${names[nextF]}` : 'Configura contenido desde el panel';
+  }
+}
+
+function hideNoContentScreen() {
+  const el = ge('no-content-screen');
+  if (el) el.style.display = 'none';
+}
+
 function showPlayer()  {
   ge('standby-screen').style.display='none';
+  hideNoContentScreen();
   const p = ge('player');
   p.style.display='block';
   p.classList.remove('fade-in');
-  // Forzar reflow para que la transición se aplique desde opacity:0
   void p.offsetWidth;
   requestAnimationFrame(() => p.classList.add('fade-in'));
 }
@@ -1010,16 +1063,48 @@ function getStaggeredDelay() {
 }
 
 // Al volver internet — sincronizar cambios
+// Monitor de conexión Firebase — reconecta si lleva más de 2 min sin respuesta
+let _fbLastResponse  = Date.now();
+let _fbReconnecting  = false;
+
+// Actualizar timestamp cada vez que Firebase responde
+function _fbPing() { _fbLastResponse = Date.now(); }
+
+setInterval(() => {
+  if (!DB || !sysCode) return;
+  const elapsed = Date.now() - _fbLastResponse;
+  if (elapsed > 120000 && !_fbReconnecting) { // 2 min sin respuesta
+    _fbReconnecting = true;
+    console.warn('[firebase] Sin respuesta ' + Math.round(elapsed/1000) + 's — reconectando...');
+    ge('status-dot')?.classList.add('off');
+    // Firebase SDK reconecta solo — forzamos un ping para verificar
+    DB.ref('.info/connected').once('value').then(s => {
+      _fbReconnecting = false;
+      _fbLastResponse = Date.now();
+      if (s.val()) {
+        console.log('[firebase] Reconexión OK');
+        ge('status-dot')?.classList.remove('off');
+        // Re-escuchar si se perdieron los listeners
+        if (!_listeners) listenFiles();
+      }
+    }).catch(() => {
+      _fbReconnecting = false;
+      console.warn('[firebase] Reconexión fallida — recargando en 15s');
+      setTimeout(() => location.reload(), 15000);
+    });
+  }
+}, 30000);
+
 window.addEventListener('online', () => {
   console.log('[online] Conexión restaurada — sincronizando...');
+  _fbLastResponse = Date.now();
   ge('status-dot').classList.remove('off');
   if (DB && sysCode) {
-    // Re-escuchar Firebase para obtener cambios mientras estaba offline
     DB.ref(`sys/${sysCode}/files`).once('value').then(snap => {
+      _fbPing();
       if (!snap.exists()) return;
       const allFiles = {};
       snap.forEach(c => { allFiles[c.key] = { id: c.key, ...c.val() }; return false; });
-      // Detectar archivos nuevos o modificados
       let changed = 0;
       Object.values(allFiles).forEach(f => {
         const cached = _allFilesMap[f.id];
@@ -1152,7 +1237,8 @@ function buildPlaylist() {
 
   console.log(`[playlist] ${day}/${fr} — vídeos:${baseVideos.length} fotos:${basePhotos.length} música:${baseMusic.length} playlist:${plItems.length} total:${items.length}`);
 
-  if (!items.length) { PLAYLIST=[]; isPlaying=false; showStandby(); return; }
+  if (!items.length) { PLAYLIST=[]; isPlaying=false; showNoContentScreen(); return; }
+  hideNoContentScreen();
 
   const oldIds = PLAYLIST.map(x=>x.id).join(',');
   PLAYLIST = items;
@@ -1381,25 +1467,32 @@ function playItem(idx) {
     // Optimizar URL de Cloudinary para servir en resolución TV (1280px)
     // y formato WebP si el navegador lo soporta — reduce consumo sin perder calidad visual
     const optimizedUrl = optimizeCloudinaryUrl(item.url);
+    // Alternar animación Ken Burns entre img e img2
+    const _kbToggle = (curIdx % 2 === 0);
+    const dur = (item.duration || 8);
     tmp.onload = () => {
-      // Activar fondo borroso con los colores de la foto
+      // Fondo borroso con colores de la foto
       const bg = ge('img-bg');
-      if (bg) {
-        bg.src = item.url; // URL sin optimizar para el bg (no importa la calidad)
-        bg.classList.add('show');
-      }
-      // Crossfade: img2 carga la nueva imagen mientras img sigue visible
-      img2El.src = optimizedUrl;
-      img2El.style.opacity = 1;
-      img.style.opacity  = 0;
+      if (bg) { bg.src = item.url; bg.classList.add('show'); }
+
+      // Ken Burns: fijar duración como variable CSS y alternar animación
+      document.documentElement.style.setProperty('--kb-dur', dur + 's');
+
+      // Crossfade con Ken Burns
+      const showEl = _kbToggle ? img2El : img;
+      const hideEl = _kbToggle ? img    : img2El;
+      showEl.src = optimizedUrl;
+      showEl.classList.remove('kenburns');
+      void showEl.offsetWidth; // reflow para reiniciar la animación
+      showEl.classList.add('kenburns');
+      showEl.style.opacity = 1;
+      hideEl.style.opacity = 0;
       setTimeout(() => {
-        img.src = optimizedUrl;
-        img.style.opacity  = 1;
-        img2El.style.opacity = 0;
-        img2El.removeAttribute('src');
+        hideEl.classList.remove('kenburns');
+        hideEl.removeAttribute('src');
       }, 1000);
       clearTimeout(playTimer);
-      playTimer = setTimeout(nextItem, (item.duration || 8) * 1000);
+      playTimer = setTimeout(nextItem, dur * 1000);
     };
     tmp.onerror = () => {
       // Si la URL optimizada falla, intentar con la original
@@ -1554,30 +1647,37 @@ function startTickerCycle() {
 }
 
 function showNormalTicker() {
-  const el = ge('ticker-logo');
-  el.textContent  = screenName;
-  el.style.background = 'var(--accent)';
-  el.style.color      = '#000';
-  renderTicker(); // restaura el texto normal
+  _sponsorMode = false;
+  const logo = ge('ticker-logo');
+  const txt  = ge('ticker-text');
+  // Restaurar badge de sala
+  logo.innerHTML      = '<span style="font-size:16px">📍</span>' + (screenName || 'SALA');
+  logo.style.background = '';  // usa el gradiente del CSS
+  logo.style.color      = '';
+  logo.style.border     = '';
+  // Restaurar color del texto del ticker
+  txt.style.color = 'var(--ticker-text)';
+  renderTicker();
 }
 
 function showSponsorTicker(sp) {
-  const el  = ge('ticker-logo');
-  const txt = ge('ticker-text');
-  const col = sp.color || '#ffcc00';
+  _sponsorMode = true;
+  const logo = ge('ticker-logo');
+  const txt  = ge('ticker-text');
+  const col  = sp.color || 'var(--accent)';
 
   // Badge del sponsor
-  el.textContent      = '💼 SPONSOR';
-  el.style.background = '#1a1a1a';
-  el.style.color      = col;
-  el.style.border     = '2px solid ' + col;
+  logo.innerHTML      = '💼 SPONSOR';
+  logo.style.background = '#1a1a1a';
+  logo.style.color      = col;
+  logo.style.border     = '2px solid ' + col;
 
   // Mensaje
-  txt.textContent = sp.msg || '';
-  txt.style.color = col;
+  txt.textContent     = sp.msg || '';
+  txt.style.color     = col;
 
-  // Velocidad según longitud
-  const speed = Math.max(12, (sp.msg||'').length * 0.3);
+  // Velocidad según longitud del mensaje
+  const speed = Math.max(12, (sp.msg || '').length * 0.3);
   txt.style.animation = 'none';
   void txt.offsetHeight;
   txt.style.animation = `tickerScroll ${speed}s linear infinite`;
@@ -1609,14 +1709,16 @@ function applyTickerColors(bgColor, accentColor) {
 }
 
 function renderTicker() {
-  // Restaurar estilo normal del ticker
+  // Si estamos mostrando un sponsor NO restaurar estilos — el sponsor tiene sus propios colores
+  if (_sponsorMode) return;
+
   const txt = ge('ticker-text');
-  txt.style.color  = '#ffffff';
+  txt.style.color = 'var(--ticker-text)';
   const logo = ge('ticker-logo');
   if (logo) {
-    logo.style.background = 'var(--accent)';
-    logo.style.color      = '#000';
-    logo.style.border     = 'none';
+    logo.style.background = '';
+    logo.style.color      = '';
+    logo.style.border     = '';
   }
 
   const today = DAYS_ES[new Date().getDay()];
@@ -1650,7 +1752,8 @@ function renderTicker() {
 // Calcula los días que faltan para cada evento que empiece en los próximos 30 días
 // o que ya esté activo y tenga fecha de fin próxima
 function getEventCountdowns() {
-  const results = [];
+  try {
+    const results = [];
   const now     = new Date();
   const today   = `${String(now.getDate()).padStart(2,'0')}/${String(now.getMonth()+1).padStart(2,'0')}`;
 
@@ -1712,6 +1815,10 @@ function getEventCountdowns() {
   });
 
   return results;
+  } catch(e) {
+    console.warn('[countdown] Error calculando cuenta atrás:', e.message);
+    return []; // si algo falla, simplemente no mostrar cuenta atrás
+  }
 }
 
 // ════════════════════════════════════════════════════
@@ -2096,6 +2203,17 @@ let _watchdogPaused = false;
 // 1. Capturar errores JS y recargar tras 8s
 window.onerror = (msg, src, line, col) => {
   console.error('[CRASH]', msg, '@', line + ':' + col);
+  // Reportar el error a Firebase para que el panel lo vea
+  try {
+    if (DB && sysCode && screenId) {
+      DB.ref(`sys/${sysCode}/screens/${screenId}/lastError`).set({
+        msg: String(msg).slice(0, 200),
+        src: String(src).slice(0, 100),
+        line, col,
+        ts: Date.now(),
+      });
+    }
+  } catch(e) {} // no bloquear si falla el reporte
   setTimeout(() => location.reload(), 8000);
 };
 
