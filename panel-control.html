@@ -536,8 +536,24 @@ textarea.inp{resize:vertical;line-height:1.7}
     <div class="drop-zone-icon">☁</div>
     <div class="drop-zone-txt">
       <strong>Arrastra archivos aquí</strong> o haz click para seleccionar<br>
-      Vídeos · Fotos · Música · Múltiples a la vez<br>
-      <span style="color:var(--text3)">Se suben directo a Cloudinary y aparecen en la TV al momento</span>
+      Fotos · Música → van a Cloudinary<br>
+      <span style="color:var(--text3)">Se suben directo y aparecen en la TV al momento</span>
+    </div>
+   </div>
+
+   <!-- Botón vídeo local -->
+   <div style="margin-top:8px;display:flex;gap:8px;align-items:stretch">
+    <div class="drop-zone" style="flex:1;padding:14px;cursor:pointer"
+      ondragover="dzOver(event)" ondragleave="dzLeave(event)" ondrop="dzDropLocal(event)"
+      onclick="ge('file-picker-local').click()">
+     <input type="file" id="file-picker-local" multiple accept="video/*" style="display:none"
+       onchange="registerLocalFiles(this.files)">
+     <div style="font-size:22px;margin-bottom:4px">📁</div>
+     <div class="drop-zone-txt">
+       <strong>Vídeos LOCALES</strong><br>
+       No gastan cuota Cloudinary<br>
+       <span style="color:var(--green);font-size:10px">Deben estar en C:\signo\contenido\</span>
+     </div>
     </div>
    </div>
    <!-- Progreso -->
@@ -619,6 +635,7 @@ textarea.inp{resize:vertical;line-height:1.7}
     <button class="sort-btn" id="sort-name" onclick="sortFiles('name')">🔤 Nombre</button>
     <button class="sort-btn" id="sort-size" onclick="sortFiles('size')">📦 Tamaño</button>
    </div>
+   <button class="abtn btn-sm" onclick="showSequenceModal()" title="Ver el orden exacto de reproducción en la TV" style="white-space:nowrap">▶ Ver secuencia</button>
   </div>
   <div class="flist" id="file-list"><div class="empty"><p>No hay archivos todavía.<br>Añade contenido arriba ↑</p></div></div>
  </div>
@@ -877,6 +894,14 @@ textarea.inp{resize:vertical;line-height:1.7}
     <input class="inp sm" id="cfg-cl-cloud" placeholder="dn5m9waqz">
     <div class="lbl">Upload Preset</div>
     <input class="inp sm" id="cfg-cl-preset" placeholder="panel_tv">
+    <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border)">
+     <div class="lbl">📁 Carpeta local de vídeos</div>
+     <input class="inp sm" id="cfg-local-path" placeholder="contenido" value="contenido">
+     <div style="font-family:var(--fm);font-size:10px;color:var(--text2);margin:6px 0;line-height:1.6">
+      Carpeta servida por el servidor local. Por defecto <b>contenido</b> → los vídeos van en <b>C:\signo\contenido\</b><br>
+      Si usas Google Drive mapeado como unidad, escribe la ruta HTTP que sirve esa carpeta.
+     </div>
+    </div>
     <div style="font-family:var(--fm);font-size:10px;color:var(--text2);margin:8px 0;line-height:1.6">
       Si Cloudinary se bloquea por superar la cuota gratuita,
       crea una cuenta nueva en cloudinary.com con otro email,
@@ -1507,6 +1532,11 @@ function fixTypesInFirebase() {
 let CL_CLOUD  = 'dn5m9waqz';
 let CL_PRESET = 'panel_tv';
 
+// Ruta base para archivos locales — relativa al servidor Python
+// Puede ser 'contenido' (→ http://localhost:8080/contenido/)
+// o una ruta de red/Google Drive si el servidor la sirve
+let LOCAL_BASE_URL = 'contenido'; // configurable desde Ajustes
+
 // Cola de archivos pendientes
 let uploadQueue = [];
 let uploadBusy  = false;
@@ -2024,15 +2054,12 @@ function saveFileToFirebase(url, name, type, source) {
   const fid = 'f_' + ts + '_' + Math.random().toString(36).slice(2,5);
   const isImg = type.startsWith('image/');
 
-  // El archivo se guarda UNA sola vez — sin campo sala
-  // La asignación a salas se gestiona en assignments/
   DB.ref(`sys/${syncCode}/files/${fid}`).set({
     name, type, url, source,
     size: 0, uploaded: ts,
     order: ts, freq: 1, duration: isImg ? 5 : 0, role: 'base'
   }).then(async () => {
-    // Asignar automáticamente a la sala activa
-    await assignFileToSala(fid, currentSala, true); // true = no duplicar entrada pendiente
+    await assignFileToSala(fid, currentSala, true);
     const salaTxt = currentSala === 'common' ? 'COMÚN' : (ROOMS[currentSala]?.name || currentSala);
     toast(name + ' añadido a ' + salaTxt + ' (pendiente)', 'ok');
     addLog('PANEL', 'Subido: ' + name + ' → ' + salaTxt, 'ok');
@@ -2040,6 +2067,30 @@ function saveFileToFirebase(url, name, type, source) {
   }).catch(e => {
     toast('Error Firebase: ' + e.message, 'err');
   });
+}
+
+// ── VÍDEOS LOCALES ─────────────────────────────────────────────────────
+// Registra vídeos locales en Firebase sin subirlos a Cloudinary.
+// La TV los reproduce desde http://localhost:8080/contenido/nombre.mp4
+// Requiere que el fichero esté en C:\signo\contenido\ en cada PC.
+function registerLocalFiles(files) {
+  if (!files || !files.length) return;
+  Array.from(files).forEach(file => {
+    const name = file.name;
+    const type = file.type || 'video/mp4';
+    // URL local relativa al servidor Python — cada TV la resuelve con su propio localhost
+    const localUrl = LOCAL_BASE_URL + '/' + encodeURIComponent(name);
+    saveFileToFirebase(localUrl, name, type, 'local');
+    toast(`📁 "${name}" registrado como local`, 'ok');
+  });
+}
+
+function dzDropLocal(e) {
+  e.preventDefault();
+  ge('drop-zone')?.classList.remove('over');
+  const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('video/'));
+  if (!files.length) { toast('Solo se aceptan vídeos para archivos locales','warn'); return; }
+  registerLocalFiles(files);
 }
 
 // ── UI helpers ─────────────────────────────────────────────────────────
@@ -2339,6 +2390,93 @@ function previewFile(fid){
     '<p style="padding:20px;color:var(--text2)">Vista previa no disponible</p>';
   ge('modal').classList.add('on');
 }
+function showSequenceModal() {
+  // Simular el algoritmo de buildPlaylist de la TV para mostrar
+  // el orden exacto en que saldrán los archivos en pantalla
+  const salaFiles = FILES.filter(f => {
+    const salaIds = ASSIGNMENTS[currentSala] || [];
+    return salaIds.includes(f.id);
+  });
+
+  // Separar BASE vs PLAYLIST
+  const detectType = f => {
+    const t = (f.type || '').toLowerCase();
+    if (t.startsWith('video/')) return 'video';
+    if (t.startsWith('image/')) return 'image';
+    if (t.startsWith('audio/')) return 'audio';
+    const ext = (f.url || f.name || '').split('.').pop().toLowerCase();
+    if (['mp4','webm','mov','avi'].includes(ext)) return 'video';
+    if (['jpg','jpeg','png','gif','webp'].includes(ext)) return 'image';
+    if (['mp3','ogg','wav','aac','m4a'].includes(ext)) return 'audio';
+    return 'video';
+  };
+
+  const baseVideos = salaFiles.filter(f => (f.role==='base'||!f.role) && detectType(f)==='video')
+    .sort((a,b) => (a.order||a.uploaded||0)-(b.order||b.uploaded||0));
+  const basePhotos = salaFiles.filter(f => (f.role==='base'||!f.role) && detectType(f)==='image')
+    .sort((a,b) => (a.order||a.uploaded||0)-(b.order||b.uploaded||0));
+  const baseMusic  = salaFiles.filter(f => (f.role==='base'||!f.role) && detectType(f)==='audio');
+  const plFiles    = salaFiles.filter(f => f.role==='playlist');
+
+  // Construir secuencia BASE
+  let baseItems = [];
+  baseVideos.forEach(f => { for(let i=0;i<(f.freq||1);i++) baseItems.push({...f,_type:'video'}); });
+  basePhotos.forEach(f => { for(let i=0;i<(f.freq||1);i++) baseItems.push({...f,_type:'image'}); });
+  if (!baseItems.length) baseItems = salaFiles.filter(f=>detectType(f)!=='audio').map(f=>({...f}));
+
+  // Intercalar PLAYLIST cada 2 BASE
+  let sequence = [];
+  let plIdx = 0;
+  baseItems.forEach((item, i) => {
+    sequence.push({...item, _source:'BASE'});
+    if ((i+1) % 2 === 0 && plFiles.length) {
+      const pl = plFiles[plIdx % plFiles.length];
+      sequence.push({...pl, _type: detectType(pl), _source:'PLAYLIST'});
+      plIdx++;
+    }
+  });
+
+  if (!sequence.length) {
+    openModal('Secuencia de reproducción', '<div style="padding:24px;text-align:center;font-family:var(--fm);color:var(--text3)">No hay archivos en esta sala todavía.</div>');
+    return;
+  }
+
+  const typeIcon = t => t==='video'?'🎬':t==='image'?'🖼':'🎵';
+  const durText  = f => f._type==='image' ? `${f.duration||8}s` : f._type==='video' ? '▶ vídeo' : '🎵';
+
+  const html = `
+    <div style="font-family:var(--fm);font-size:11px;color:var(--text3);margin-bottom:12px">
+      ${sequence.length} elementos en el ciclo · ${baseMusic.length} canciones de fondo
+      <span style="margin-left:8px;color:var(--text3)">Arrastra en CONTENIDO para reordenar</span>
+    </div>
+    <div style="display:grid;gap:4px;max-height:60vh;overflow-y:auto">
+      ${sequence.map((f,i) => `
+        <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;
+          background:${f._source==='PLAYLIST'?'rgba(255,204,0,.06)':'var(--s2)'};
+          border:1px solid var(--border);border-left:3px solid ${f._source==='PLAYLIST'?'var(--accent)':'var(--border)'}">
+          <span style="font-family:var(--fm);font-size:10px;color:var(--text3);min-width:28px">${i+1}</span>
+          <span style="font-size:16px">${typeIcon(f._type)}</span>
+          <span style="flex:1;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(f.name||'Sin nombre')}</span>
+          <span style="font-size:10px;color:var(--text3);flex-shrink:0">${durText(f)}</span>
+          <span style="font-size:9px;padding:2px 6px;background:${f._source==='PLAYLIST'?'var(--accent)':'var(--s1)'};
+            color:${f._source==='PLAYLIST'?'#000':'var(--text3)'};">${f._source}</span>
+        </div>
+      `).join('')}
+    </div>
+    ${baseMusic.length ? `
+    <div style="margin-top:16px;border-top:1px solid var(--border);padding-top:12px">
+      <div style="font-family:var(--fm);font-size:10px;color:var(--text3);margin-bottom:8px">🎵 MÚSICA DE FONDO (ciclo independiente)</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px">
+        ${baseMusic.map(f=>`<span style="font-family:var(--fm);font-size:10px;padding:4px 10px;background:var(--s2);border:1px solid var(--border)">${esc(f.name||'canción')}</span>`).join('')}
+      </div>
+    </div>` : ''}
+  `;
+
+  ge('modal-title').textContent = `Secuencia · ${currentSala==='common'?'COMÚN':ROOMS[currentSala]?.name||currentSala}`;
+  ge('modal-body').innerHTML = html;
+  ge('modal').classList.add('on');
+}
+
 function closeModal(e){if(e&&e.target!==ge('modal'))return;ge('modal').classList.remove('on');ge('modal-body').innerHTML='';}
 
 // ══ GALLERIES ═════════════════════════════════════════════════════════
@@ -2839,9 +2977,11 @@ async function saveCloudinaryCfg(){
   const preset = gv('cfg-cl-preset').trim();
   if (!cloud || !preset) { toast('Rellena Cloud Name y Preset', 'warn'); return; }
   try {
-    await DB.ref(`sys/${syncCode}/cloudinary`).set({ cloud, preset, updatedAt: Date.now() });
-    CL_CLOUD  = cloud;
-    CL_PRESET = preset;
+    const localPath = ge('cfg-local-path') ? gv('cfg-local-path').trim() || 'contenido' : 'contenido';
+    await DB.ref(`sys/${syncCode}/cloudinary`).set({ cloud, preset, localPath, updatedAt: Date.now() });
+    CL_CLOUD       = cloud;
+    CL_PRESET      = preset;
+    LOCAL_BASE_URL = localPath;
     toast('Cloudinary actualizado ✓', 'ok');
     addLog('PANEL', 'Credenciales Cloudinary actualizadas', 'ok');
   } catch(e) {
@@ -2859,8 +2999,9 @@ async function loadCloudinaryCfg(){
       console.log('[cloudinary] Configuración cargada:', CL_CLOUD, CL_PRESET);
     }
     // Rellenar los campos del formulario con los valores activos
-    if (ge('cfg-cl-cloud'))  ge('cfg-cl-cloud').value  = CL_CLOUD;
-    if (ge('cfg-cl-preset')) ge('cfg-cl-preset').value = CL_PRESET;
+    if (ge('cfg-cl-cloud'))   ge('cfg-cl-cloud').value   = CL_CLOUD;
+    if (ge('cfg-cl-preset'))  ge('cfg-cl-preset').value  = CL_PRESET;
+    if (ge('cfg-local-path')) ge('cfg-local-path').value = LOCAL_BASE_URL;
   } catch(e) { console.warn('[cloudinary] No se pudo cargar config:', e); }
 }
 function savePlaybackCfg(){

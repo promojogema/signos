@@ -381,6 +381,7 @@ let sysCode      = '';    // syncCode del propietario
 let screenId     = '';    // ID de esta TV en Firebase
 let screenName   = '';
 let bizName      = '';
+let LOCAL_BASE_URL = 'contenido'; // configurable desde Ajustes del panel
 let currentVol   = 80;
 
 let PLAYLIST     = [];    // ítems a reproducir ahora
@@ -667,6 +668,11 @@ async function loadCfg() {
       applyTickerTheme(meta.tickerTheme);
     });
   } catch(e){}
+  // Cargar ruta local desde config de Cloudinary
+  try {
+    const cc = await DB.ref(`sys/${sysCode}/cloudinary`).once('value');
+    if (cc.exists() && cc.val().localPath) LOCAL_BASE_URL = cc.val().localPath;
+  } catch(e) {}
 }
 
 // Cambia el color principal y el tema del ticker sin recargar
@@ -817,6 +823,8 @@ function reportUsageToFirebase(usageMB, today) {
 
 // Descargar un archivo de Cloudinary y guardarlo como blob
 async function cacheFile(file) {
+  // Archivos locales no se cachean — ya están en disco
+  if (file._isLocal || file.source === 'local') return file.url;
   try {
     // Red de seguridad: límite de descarga diaria por TV para nunca
     // volver a disparar la cuota de Cloudinary aunque algo vaya mal
@@ -926,7 +934,9 @@ async function saveToCache() {
 // Descargar en background los archivos COMÚN que no están en caché
 // Reactivado: ahora applyCachedUrls() SÍ usa el blob descargado al reproducir,
 // así que cada archivo solo se descarga UNA vez de Cloudinary por TV.
-const CACHE_DOWNLOAD_ENABLED = true;
+// CACHÉ DESACTIVADA — cuenta Cloudinary bloqueada por exceso de consumo
+// Reactivar solo cuando se identifique y corrija la causa raíz del consumo excesivo
+const CACHE_DOWNLOAD_ENABLED = false;
 const MAX_CACHE_FILE_MB = 60; // no cachear vídeos enormes — se sirven en streaming
 
 async function syncCommonFiles() {
@@ -1135,10 +1145,18 @@ function applyAssignments() {
   myIds.forEach(id => {
     if (_allFilesMap[id]) {
       const f = { ..._allFilesMap[id] };
-      // Por defecto usar la URL remota; se sustituirá por blob local
-      // en applyCachedUrls() si existe una copia válida en IndexedDB
-      if (f._originalUrl) f.url = f._originalUrl;
-      if (!f.url || f.url.startsWith('blob:')) {
+      // Si es un archivo local, construir URL desde localhost
+      if (f.source === 'local') {
+        // URL local: http://localhost:8080/contenido/video.mp4
+        const filename = f.url ? f.url.split('/').pop() : f.name;
+        f.url = 'http://localhost:8080/' + LOCAL_BASE_URL + '/' + filename;
+        f._isLocal = true;
+        console.log('[local] URL local:', f.url);
+      } else {
+        // URL remota (Cloudinary)
+        if (f._originalUrl) f.url = f._originalUrl;
+      }
+      if (!f.url || f.url.startsWith('blob:null')) {
         console.warn('[assign] URL no disponible para:', f.name);
         return;
       }
@@ -1518,7 +1536,8 @@ function playItem(idx) {
 // Optimizar URLs de Cloudinary para servir fotos a resolución TV
 // sin descargar la imagen original de alta resolución (ahorra ancho de banda)
 function optimizeCloudinaryUrl(url) {
-  if (!url || !url.includes('res.cloudinary.com')) return url;
+  if (!url || url.startsWith('http://localhost') || url.startsWith('/')) return url;
+  if (!url.includes('res.cloudinary.com')) return url;
   // Insertar transformaciones: w_1280 (ancho máx TV), q_auto (calidad auto), f_auto (formato óptimo)
   // Solo para imágenes, no para vídeos
   if (url.includes('/video/upload/')) return url;
