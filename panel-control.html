@@ -541,18 +541,19 @@ textarea.inp{resize:vertical;line-height:1.7}
     </div>
    </div>
 
-   <!-- Botón vídeo local -->
-   <div style="margin-top:8px;display:flex;gap:8px;align-items:stretch">
-    <div class="drop-zone" style="flex:1;padding:14px;cursor:pointer"
+   <!-- Zona LOCAL: fotos, música y vídeos sin Cloudinary -->
+   <div style="margin-top:8px">
+    <div class="drop-zone" style="padding:14px;cursor:pointer"
       ondragover="dzOver(event)" ondragleave="dzLeave(event)" ondrop="dzDropLocal(event)"
       onclick="ge('file-picker-local').click()">
-     <input type="file" id="file-picker-local" multiple accept="video/*" style="display:none"
+     <input type="file" id="file-picker-local" multiple
+       accept="video/*,image/*,audio/*" style="display:none"
        onchange="registerLocalFiles(this.files)">
      <div style="font-size:22px;margin-bottom:4px">📁</div>
      <div class="drop-zone-txt">
-       <strong>Vídeos LOCALES</strong><br>
+       <strong>Archivos LOCALES</strong> — Vídeos, Fotos y Música<br>
        No gastan cuota Cloudinary<br>
-       <span style="color:var(--green);font-size:10px">Deben estar en C:\signo\contenido\</span>
+       <span style="color:var(--green);font-size:10px">Deben estar en C:\a\signo\contenidos\</span>
      </div>
     </div>
    </div>
@@ -838,9 +839,15 @@ textarea.inp{resize:vertical;line-height:1.7}
    <div class="set-card">
     <div class="set-card-title">🖼 Logo del negocio</div>
     <div class="logo-prev" id="logo-prev"><span>Sin logo</span></div>
-    <div style="position:relative;margin-bottom:12px">
-     <input type="file" accept="image/*" style="position:absolute;inset:0;opacity:0;cursor:pointer;z-index:1" onchange="uploadLogo(this.files[0])">
-     <button class="btn btn-g btn-sm" style="width:100%;pointer-events:none">Seleccionar imagen</button>
+    <div style="display:flex;gap:8px;margin-bottom:12px">
+     <div style="flex:1;position:relative">
+      <input type="file" accept="image/*" style="position:absolute;inset:0;opacity:0;cursor:pointer;z-index:1" onchange="uploadLogo(this.files[0])">
+      <button class="btn btn-g btn-sm" style="width:100%;pointer-events:none">☁ Logo via Cloudinary</button>
+     </div>
+     <div style="flex:1;position:relative">
+      <input type="file" accept="image/*" style="position:absolute;inset:0;opacity:0;cursor:pointer;z-index:1" onchange="registerLocalLogo(this.files[0])">
+      <button class="btn btn-sm" style="width:100%;pointer-events:none;border-color:var(--green);color:var(--green)">📁 Logo LOCAL</button>
+     </div>
     </div>
     <div class="lbl">Posición en la pantalla TV</div>
     <div id="logo-pos-grid" style="
@@ -896,9 +903,9 @@ textarea.inp{resize:vertical;line-height:1.7}
     <input class="inp sm" id="cfg-cl-preset" placeholder="panel_tv">
     <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border)">
      <div class="lbl">📁 Carpeta local de vídeos</div>
-     <input class="inp sm" id="cfg-local-path" placeholder="contenido" value="contenido">
+     <input class="inp sm" id="cfg-local-path" placeholder="a/signo/contenidos" value="a/signo/contenidos">
      <div style="font-family:var(--fm);font-size:10px;color:var(--text2);margin:6px 0;line-height:1.6">
-      Carpeta servida por el servidor local. Por defecto <b>contenido</b> → los vídeos van en <b>C:\signo\contenido\</b><br>
+      Carpeta servida por el servidor local. Por defecto <b>a/signo/contenidos</b> → los vídeos van en <b>C:\a\signo\contenidos\</b><br>
       Si usas Google Drive mapeado como unidad, escribe la ruta HTTP que sirve esa carpeta.
      </div>
     </div>
@@ -1535,7 +1542,7 @@ let CL_PRESET = 'panel_tv';
 // Ruta base para archivos locales — relativa al servidor Python
 // Puede ser 'contenido' (→ http://localhost:8080/contenido/)
 // o una ruta de red/Google Drive si el servidor la sirve
-let LOCAL_BASE_URL = 'contenido'; // configurable desde Ajustes
+let LOCAL_BASE_URL = 'a/signo/contenidos'; // configurable desde Ajustes
 
 // Cola de archivos pendientes
 let uploadQueue = [];
@@ -2075,21 +2082,22 @@ function saveFileToFirebase(url, name, type, source) {
 // Requiere que el fichero esté en C:\signo\contenido\ en cada PC.
 function registerLocalFiles(files) {
   if (!files || !files.length) return;
+  let count = 0;
   Array.from(files).forEach(file => {
     const name = file.name;
-    const type = file.type || 'video/mp4';
-    // URL local relativa al servidor Python — cada TV la resuelve con su propio localhost
+    const type = file.type || 'application/octet-stream';
     const localUrl = LOCAL_BASE_URL + '/' + encodeURIComponent(name);
     saveFileToFirebase(localUrl, name, type, 'local');
-    toast(`📁 "${name}" registrado como local`, 'ok');
+    count++;
   });
+  toast(`📁 ${count} archivo(s) registrado(s) como locales — recuerda copiarlos a C:\a\signo\contenidos\`, 'ok');
 }
 
 function dzDropLocal(e) {
   e.preventDefault();
   ge('drop-zone')?.classList.remove('over');
-  const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('video/'));
-  if (!files.length) { toast('Solo se aceptan vídeos para archivos locales','warn'); return; }
+  const files = Array.from(e.dataTransfer.files);
+  if (!files.length) return;
   registerLocalFiles(files);
 }
 
@@ -3011,6 +3019,20 @@ function savePlaybackCfg(){
   toast('Guardado','ok');
 }
 let _logoPos = 'tr'; // posición por defecto: arriba derecha
+
+// Logo desde carpeta local — guarda la URL local en Firebase
+async function registerLocalLogo(file) {
+  if (!file) return;
+  const localUrl = LOCAL_BASE_URL + '/' + encodeURIComponent(file.name);
+  ge('logo-prev').innerHTML = `<img src="http://localhost:8080/${localUrl}">`;
+  try {
+    await DB.ref(`sys/${syncCode}/meta/logoUrl`).set('http://localhost:8080/' + localUrl);
+    await DB.ref(`sys/${syncCode}/meta/logoSource`).set('local');
+    toast('Logo local guardado ✓', 'ok');
+  } catch(e) {
+    toast('Error: ' + e.message, 'err');
+  }
+}
 
 async function uploadLogo(file){
   if(!file) return;
