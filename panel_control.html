@@ -1,0 +1,1162 @@
+<!DOCTYPE html>
+<html lang="es"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Panel de Control — Rifa Multisala</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&family=Bebas+Neue&display=swap');
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',Arial,sans-serif;background:#020817;color:#e2e8f0;font-size:14px;min-height:100vh}
+:root{--gold:#fbbf24;--gold-dark:#d97706;--bg:#020817;--bg2:#0f172a;--bg3:#1e293b;--bg4:#2d3748;--txt:#e2e8f0;--txt2:#94a3b8;--txt3:#475569;--border:rgba(255,255,255,.08);--green:#4ade80;--green-dark:#16a34a;--red:#f87171;--red-dark:#dc2626;--blue:#60a5fa;--blue-dark:#2563eb;--radius:12px}
+
+/* LOGIN */
+#login{position:fixed;inset:0;background:linear-gradient(135deg,#020817 0%,#0f172a 50%,#020817 100%);display:flex;align-items:center;justify-content:center;z-index:999}
+.lb{background:rgba(30,41,59,.9);backdrop-filter:blur(20px);border:1px solid rgba(251,191,36,.15);border-radius:20px;padding:36px 40px;width:360px;text-align:center;position:relative}
+.lb::before{content:'';position:absolute;inset:-1px;border-radius:20px;background:linear-gradient(135deg,rgba(251,191,36,.2),transparent,rgba(96,165,250,.2));z-index:-1;filter:blur(8px)}
+.lb h2{font-family:'Bebas Neue',sans-serif;font-size:26px;color:var(--gold);margin-bottom:4px;letter-spacing:2px}
+.lb p{font-size:12px;color:var(--txt2);margin-bottom:22px}
+.lb input{width:100%;height:42px;border-radius:10px;border:1px solid rgba(251,191,36,.2);background:rgba(2,8,23,.6);color:var(--txt);padding:0 14px;font-size:15px;font-family:'Inter',inherit;margin-bottom:10px;text-align:center;transition:border .2s}
+.lb input:focus{outline:none;border-color:var(--gold);box-shadow:0 0 0 3px rgba(251,191,36,.1)}
+.lb-btn{width:100%;height:44px;background:linear-gradient(135deg,var(--gold),var(--gold-dark));color:#000;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .2s;margin-bottom:8px}
+.lb-btn:hover{transform:translateY(-1px);box-shadow:0 8px 25px rgba(251,191,36,.4)}
+.lb-link{font-size:12px;color:var(--txt3);cursor:pointer;text-decoration:underline;background:none;border:none;font-family:inherit;width:100%;text-align:center;padding:4px;transition:color .2s}
+.lb-link:hover{color:var(--txt2)}
+.lb-err{color:var(--red);font-size:12px;margin-top:8px;display:none;padding:8px;background:rgba(220,38,38,.1);border-radius:8px}
+.lb-hint{font-size:10px;color:var(--txt3);margin-top:10px}
+
+/* RECUPERAR */
+#recuperar{position:fixed;inset:0;background:rgba(0,0,0,.85);display:none;align-items:center;justify-content:center;z-index:1000;backdrop-filter:blur(4px)}
+#recuperar.show{display:flex}
+.rec-box{background:var(--bg3);border:1px solid rgba(251,191,36,.2);border-radius:16px;padding:28px 32px;width:340px;text-align:center}
+.rec-box h3{font-size:16px;color:var(--gold);margin-bottom:8px}
+.rec-box p{font-size:12px;color:var(--txt2);margin-bottom:14px;line-height:1.5}
+.rec-email{font-size:13px;font-weight:700;color:var(--blue);background:var(--bg2);padding:8px 14px;border-radius:8px;margin-bottom:14px;word-break:break-all}
+.rec-btn{width:100%;height:38px;background:linear-gradient(135deg,var(--gold-dark),var(--gold));color:#000;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:8px}
+.msg-ok{color:var(--green);font-size:12px;margin-top:6px;display:none}
+.msg-err{color:var(--red);font-size:12px;margin-top:6px;display:none}
+
+/* APP */
+#app{display:none}
+.topbar{background:rgba(15,23,42,.95);backdrop-filter:blur(10px);border-bottom:1px solid var(--border);padding:10px 20px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:50}
+.topbar h1{font-family:'Bebas Neue',sans-serif;font-size:20px;color:var(--gold);letter-spacing:2px;display:flex;align-items:center;gap:10px}
+.topbar-evento{font-size:12px;color:var(--txt3);font-family:'Inter',sans-serif;font-weight:400;letter-spacing:0}
+.topbar-r{display:flex;align-items:center;gap:8px}
+.live-badge{display:flex;align-items:center;gap:5px;background:rgba(74,222,128,.1);border:1px solid rgba(74,222,128,.3);border-radius:20px;padding:4px 10px;font-size:11px;color:var(--green);font-weight:600}
+.live-dot{width:7px;height:7px;border-radius:50%;background:var(--green);animation:lp 2s infinite}
+@keyframes lp{0%,100%{box-shadow:0 0 0 0 rgba(74,222,128,.5)}50%{box-shadow:0 0 0 5px rgba(74,222,128,0)}}
+.con-lbl{font-size:11px;color:var(--green)}
+.btn-xs{height:28px;padding:0 12px;border-radius:7px;border:1px solid var(--border);background:var(--bg3);color:var(--txt2);font-size:12px;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:5px;transition:all .2s}
+.btn-xs:hover{background:var(--bg4);color:var(--txt);border-color:rgba(255,255,255,.15)}
+.btn-xs.warn{border-color:rgba(251,191,36,.3);color:var(--gold)}
+.btn-xs.danger{border-color:rgba(220,38,38,.3);color:var(--red)}
+
+/* MAIN */
+.main{padding:16px 20px;max-width:1100px;margin:0 auto}
+
+/* SEMÁFORO */
+.semaforo{display:flex;align-items:center;gap:14px;padding:12px 16px;border-radius:var(--radius);border:1px solid var(--border);background:var(--bg2);margin-bottom:16px;backdrop-filter:blur(4px)}
+.sem-dot{width:18px;height:18px;border-radius:50%;flex-shrink:0;transition:all .3s}
+.sem-dot.verde{background:var(--green);box-shadow:0 0 16px var(--green)}
+.sem-dot.rojo{background:var(--red);box-shadow:0 0 16px var(--red)}
+.sem-dot.amarillo{background:var(--gold);box-shadow:0 0 16px var(--gold)}
+.sem-txt{font-size:13px;font-weight:600;flex:1}
+.sem-btns{display:flex;gap:6px;margin-left:auto;flex-wrap:wrap}
+
+/* TABS */
+.tabs{display:flex;gap:2px;border-bottom:1px solid var(--border);margin-bottom:16px;flex-wrap:wrap;background:var(--bg2);border-radius:var(--radius) var(--radius) 0 0;padding:6px 6px 0}
+.tab{padding:8px 14px;border:none;background:none;font-size:12px;color:var(--txt3);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;font-family:inherit;border-radius:8px 8px 0 0;transition:all .2s;font-weight:500}
+.tab.active{color:var(--txt);border-bottom-color:var(--blue);background:rgba(96,165,250,.08);font-weight:600}
+.tab:hover{color:var(--txt2);background:rgba(255,255,255,.04)}
+
+/* CARDS */
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:12px;transition:border .2s}
+.card:hover{border-color:rgba(255,255,255,.12)}
+.card-title{font-size:12px;font-weight:700;color:var(--txt2);margin-bottom:12px;display:flex;align-items:center;gap:6px;text-transform:uppercase;letter-spacing:.5px}
+
+/* FORMS */
+.row{display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;margin-bottom:8px}
+.fld{display:flex;flex-direction:column;gap:4px}
+.fld label{font-size:11px;color:var(--txt3);font-weight:500}
+input[type=text],input[type=number],input[type=password],input[type=email],input[type=datetime-local],select,textarea{background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--txt);font-family:inherit;font-size:13px;padding:0 10px;height:34px;transition:border .2s}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 2px rgba(96,165,250,.15)}
+textarea{height:auto;padding:8px 10px;resize:vertical}
+input[type=number]{width:88px}
+input[type=text],input[type=email]{width:180px}
+input[type=color]{height:34px;width:44px;border-radius:8px;border:1px solid var(--border);padding:2px;cursor:pointer;background:var(--bg)}
+.info{font-size:11px;color:var(--txt3);margin-top:3px;line-height:1.5}
+
+/* BUTTONS */
+.btn{height:34px;padding:0 14px;border-radius:8px;border:1px solid var(--border);background:var(--bg3);color:var(--txt);font-size:13px;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:6px;transition:all .2s;font-weight:500}
+.btn:hover{background:var(--bg4);border-color:rgba(255,255,255,.15)}.btn:active{transform:scale(.97)}
+.btn-p{background:var(--blue-dark);color:#fff;border-color:var(--blue-dark)}.btn-p:hover{background:var(--blue)}
+.btn-g{background:var(--green-dark);color:#fff;border-color:var(--green-dark)}.btn-g:hover{background:#15803d}
+.btn-r{background:var(--red-dark);color:#fff;border-color:var(--red-dark)}.btn-r:hover{background:#b91c1c}
+.btn-y{background:var(--gold-dark);color:#000;border-color:var(--gold-dark)}.btn-y:hover{background:var(--gold)}
+.btn-gold{background:linear-gradient(135deg,var(--gold),var(--gold-dark));color:#000;border:none;font-weight:700}.btn-gold:hover{opacity:.9}
+
+/* SALAS */
+.salas-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(165px,1fr));gap:8px;margin-bottom:12px}
+.sala-card{border-radius:var(--radius);padding:12px;border:1px solid var(--border);background:var(--bg);position:relative;transition:all .2s}
+.sala-card:hover{border-color:rgba(255,255,255,.15);transform:translateY(-1px)}
+.sc-top{display:flex;justify-content:space-between;align-items:flex-start}
+.sc-name{font-size:15px;font-weight:700;font-family:'Bebas Neue',sans-serif;letter-spacing:1px}
+.sc-rango{font-size:11px;color:var(--txt2);margin-top:2px}
+.sc-code{font-family:'Courier New',monospace;font-size:10px;background:var(--bg3);padding:3px 8px;border-radius:5px;margin-top:6px;display:inline-block;color:var(--txt2);border:1px solid var(--border)}
+.sc-del{background:none;border:none;cursor:pointer;color:var(--txt3);font-size:16px;line-height:1;padding:0;transition:color .2s}
+.sc-del:hover{color:var(--red)}
+.sala-toggle{display:flex;align-items:center;gap:6px;margin-top:8px}
+.toggle-sw{position:relative;width:34px;height:18px;cursor:pointer;flex-shrink:0}
+.toggle-sw input{opacity:0;width:0;height:0}
+.sl{position:absolute;inset:0;background:var(--bg4);border-radius:9px;transition:.3s}
+.sl:before{content:'';position:absolute;width:14px;height:14px;left:2px;top:2px;background:#fff;border-radius:50%;transition:.3s}
+.toggle-sw input:checked+.sl{background:var(--green-dark)}
+.toggle-sw input:checked+.sl:before{transform:translateX(16px)}
+
+/* PANEL PREMIADOS */
+.panel-nums{display:flex;flex-wrap:wrap;gap:6px;min-height:44px;padding:10px 12px;border-radius:var(--radius);border:1px solid var(--border);background:var(--bg);margin-bottom:10px;align-items:center}
+.badge{display:inline-flex;align-items:center;gap:4px;padding:5px 11px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;border:none;font-family:inherit;transition:all .2s}
+.badge.pend{background:rgba(220,38,38,.2);color:#fca5a5;border:1px solid rgba(220,38,38,.3)}.badge.pend:hover{background:rgba(220,38,38,.3)}
+.badge.rec{background:rgba(22,163,74,.2);color:#86efac;border:1px solid rgba(22,163,74,.3)}.badge.rec:hover{background:rgba(22,163,74,.3)}
+
+/* DRUM */
+.drum-wrap{text-align:center;margin:10px 0}
+canvas#drum{border-radius:var(--radius);display:inline-block;max-width:100%}
+.reveal-box{margin-top:10px;padding:20px;border-radius:16px;background:var(--bg);border:1px solid rgba(251,191,36,.2);text-align:center;box-shadow:0 0 30px rgba(251,191,36,.05)}
+.rev-num{font-family:'Bebas Neue',sans-serif;font-size:88px;font-weight:400;line-height:1;color:var(--gold);text-shadow:0 0 40px rgba(251,191,36,.4)}
+.rev-tag{font-size:14px;font-weight:700;padding:5px 16px;border-radius:12px;display:inline-block;margin-top:8px;letter-spacing:1px}
+.rev-sub{font-size:12px;color:var(--txt3);margin-top:6px}
+.prog-wrap{margin:6px 0}
+.prog{height:4px;border-radius:2px;background:var(--bg3);overflow:hidden}
+.prog-fill{height:100%;border-radius:2px;background:linear-gradient(90deg,var(--green-dark),var(--green));transition:width .5s}
+
+/* HIST */
+.hist-row{display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:8px;margin-bottom:4px;background:var(--bg);border:1px solid var(--border);font-size:12px;transition:border .2s}
+.hist-row:hover{border-color:rgba(255,255,255,.12)}
+.h-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+
+/* CODIGOS */
+.cod-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
+.cod-card{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:16px;transition:all .2s}
+.cod-card:hover{border-color:rgba(255,255,255,.15);transform:translateY(-1px)}
+.cod-name{font-family:'Bebas Neue',sans-serif;font-size:18px;font-weight:400;margin-bottom:3px;letter-spacing:1px}
+.cod-rango{font-size:11px;color:var(--txt3);margin-bottom:8px}
+.cod-val{font-family:'Courier New',monospace;font-size:20px;font-weight:700;letter-spacing:3px;padding:10px 14px;background:var(--bg2);border-radius:8px;text-align:center;margin-bottom:6px;border:1px solid var(--border)}
+
+/* PAPELETAS */
+.pap-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(185px,1fr));gap:10px;margin-top:10px}
+.pap{border-radius:var(--radius);padding:14px;cursor:pointer;transition:transform .15s;position:relative;overflow:hidden}
+.pap:hover{transform:scale(1.02)}
+.pap-logo{font-size:22px;margin-bottom:3px}
+.pap-ev{font-size:10px;opacity:.65;margin-bottom:3px}
+.pap-num{font-family:'Bebas Neue',sans-serif;font-size:32px;font-weight:400;text-align:right;letter-spacing:1px}
+.pap-code{font-family:'Courier New',monospace;font-size:9px;background:rgba(0,0,0,.15);padding:5px 7px;border-radius:5px;margin-top:6px;word-break:break-all;line-height:1.5}
+
+/* QR MODAL */
+#qr-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:800;align-items:center;justify-content:center;backdrop-filter:blur(4px)}
+#qr-modal.open{display:flex}
+.qrb{background:#fff;border-radius:16px;padding:24px;text-align:center;max-width:300px}
+.qrb h3{font-size:17px;color:#111;margin-bottom:4px}
+.qrb p{font-size:11px;color:#555;margin-bottom:12px}
+.qrb button{background:#111;color:#fff;border:none;padding:8px 22px;border-radius:8px;cursor:pointer;font-size:13px}
+
+/* SEGURIDAD */
+.seg-section{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:12px}
+.seg-section h4{font-size:13px;font-weight:700;color:var(--txt2);margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.pass-strength{height:4px;border-radius:2px;margin-top:5px;transition:all .3s;width:0%}
+.pass-row{display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap}
+
+/* NEG */
+.neg-chip{display:inline-flex;align-items:center;gap:5px;background:rgba(220,38,38,.1);border:1px solid rgba(220,38,38,.3);border-radius:16px;padding:4px 10px;font-size:12px;color:var(--red);margin:3px;transition:all .2s}
+.neg-chip:hover{background:rgba(220,38,38,.2)}
+.neg-chip button{background:none;border:none;cursor:pointer;color:var(--red);font-size:14px;line-height:1;padding:0}
+
+/* NOMBRES */
+.nombres-reveal{font-family:'Bebas Neue',sans-serif;font-size:52px;color:var(--gold);text-align:center;padding:24px;background:var(--bg);border-radius:16px;border:1px solid rgba(251,191,36,.2);margin-top:10px;min-height:100px;display:flex;align-items:center;justify-content:center;text-shadow:0 0 30px rgba(251,191,36,.3)}
+
+/* MAQUINAS */
+.maq-ganador-chip{background:rgba(26,10,0,.8);border:2px solid var(--gold);border-radius:var(--radius);padding:16px 24px;text-align:center;min-width:100px}
+.maq-num{font-family:'Bebas Neue',sans-serif;font-size:52px;color:var(--gold);line-height:1;text-shadow:0 0 20px rgba(251,191,36,.4)}
+
+/* AUDITORIA */
+.aud-row{display:flex;gap:8px;align-items:center;padding:7px 10px;border-radius:8px;background:var(--bg);margin-bottom:4px;font-size:12px;border:1px solid var(--border)}
+.aud-sala{font-size:11px;font-weight:700;padding:2px 8px;border-radius:8px}
+
+/* TOAST */
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:10px 20px;font-size:13px;font-weight:600;z-index:900;display:none;white-space:nowrap;box-shadow:0 4px 20px rgba(0,0,0,.5);color:var(--green)}
+.toast.show{display:block;animation:toastIn .3s ease}
+@keyframes toastIn{from{opacity:0;transform:translateX(-50%) translateY(10px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
+
+/* LOGO OVERLAY */
+#logo-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:700;align-items:center;justify-content:center;backdrop-filter:blur(4px)}
+#logo-overlay.show{display:flex}
+.logo-box{background:var(--bg3);border:1px solid var(--border);border-radius:16px;padding:24px;width:380px}
+.logo-box h3{font-size:15px;font-weight:700;color:var(--blue);margin-bottom:14px}
+
+/* VIDEO MODAL */
+#video-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:700;align-items:center;justify-content:center;backdrop-filter:blur(4px)}
+#video-modal.show{display:flex}
+
+@keyframes pop{0%{transform:scale(.5) rotate(-5deg);opacity:0}60%{transform:scale(1.1) rotate(1deg)}100%{transform:scale(1);opacity:1}}
+.pop{animation:pop .5s cubic-bezier(.175,.885,.32,1.275) forwards}
+</style>
+</head><body>
+
+<div id="qr-modal"><div class="qrb"><h3 id="qr-title"></h3><p id="qr-desc"></p><div id="qr-container" style="margin:0 auto 14px"></div><button onclick="closeQR()">Cerrar</button></div></div>
+
+<div id="recuperar">
+  <div class="rec-box">
+    <h3>🔑 Recuperar contraseña</h3>
+    <p>Se enviará un recordatorio al email del administrador configurado.</p>
+    <div class="rec-email" id="rec-email-show">Cargando...</div>
+    <button class="rec-btn" onclick="enviarRecuperacion()">📧 Enviar recordatorio</button>
+    <div class="msg-ok" id="rec-ok">✓ Abriendo cliente de correo...</div>
+    <div class="msg-err" id="rec-err">No hay email configurado. Accede al panel con la contraseña de emergencia.</div>
+    <button class="lb-link" onclick="cerrarRecuperar()" style="margin-top:10px">← Volver al login</button>
+  </div>
+</div>
+
+<div id="login">
+  <div class="lb">
+    <h2>🎰 Panel de Control</h2>
+    <p>Sistema Multisala de Sorteo Blindado</p>
+    <input type="password" id="pw" placeholder="Contraseña de administrador"
+      onkeydown="if(event.key==='Enter')doLogin()"
+      autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+      oninput="document.getElementById('pw-err').style.display='none'">
+    <button class="lb-btn" onclick="doLogin()">Entrar al panel</button>
+    <button class="lb-link" onclick="abrirRecuperar()">¿Olvidaste la contraseña?</button>
+    <div class="lb-err" id="pw-err">Contraseña incorrecta</div>
+    <div class="lb-hint">Contraseña inicial: <strong style="color:var(--gold)">admin</strong></div>
+  </div>
+</div>
+
+<div id="app">
+  <div class="topbar">
+    <h1>🎰 RIFA MULTISALA <span class="topbar-evento" id="evento-label"></span></h1>
+    <div class="topbar-r">
+      <div class="live-badge"><span class="live-dot" id="live-dot" style="background:var(--red)"></span><span class="con-lbl" id="con-lbl" style="color:var(--red)">Conectando...</span></div>
+      <button class="btn-xs" onclick="abrirLogoPanel()">🖼️ Logo</button>
+      <button class="btn-xs warn" onclick="showTab('seguridad')">🛡️ Seguridad</button>
+      <button class="btn-xs danger" onclick="doLogout()">Salir</button>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="semaforo">
+      <div class="sem-dot amarillo" id="sem-dot"></div>
+      <div><div class="sem-txt" id="sem-txt">Cargando estado...</div><div class="info" id="sem-sub"></div></div>
+      <div class="sem-btns">
+        <button class="btn btn-g" onclick="setSemaforo('verde')">▶ Activar</button>
+        <button class="btn btn-y" onclick="setSemaforo('pausa')">⏸ Pausar</button>
+        <button class="btn btn-r" onclick="setSemaforo('rojo')">⏹ Cerrar</button>
+      </div>
+    </div>
+
+    <div class="tabs">
+      <button class="tab active" onclick="showTab('salas')">⚙️ Salas</button>
+      <button class="tab" onclick="showTab('sorteo')">🎲 Sorteo</button>
+      <button class="tab" onclick="showTab('papeletas')">🎫 Papeletas</button>
+      <button class="tab" onclick="showTab('auditoria')">🔍 Auditoría</button>
+      <button class="tab" onclick="showTab('negra')">🚫 Lista Negra</button>
+      <button class="tab" onclick="showTab('codigos')">🔑 Códigos</button>
+      <button class="tab" onclick="showTab('termica')">🖨️ Térmica</button>
+      <button class="tab" onclick="showTab('maquinas')">🎰 Máquinas</button>
+      <button class="tab" onclick="showTab('dni')">🪪 Sorteo DNI</button>
+      <button class="tab" onclick="showTab('estadisticas')">📊 Estadísticas</button>
+      <button class="tab" onclick="showTab('seguridad')">🛡️ Seguridad</button>
+    </div>
+
+    <!-- SALAS -->
+    <div id="tab-salas">
+      <div class="card">
+        <div class="card-title">➕ Nueva sala</div>
+        <div class="row">
+          <div class="fld"><label>Nombre</label><input type="text" id="ns-name" placeholder="AVD" style="width:90px"></div>
+          <div class="fld"><label>Código acceso</label><input type="text" id="ns-code" placeholder="AVD2026" style="width:120px"></div>
+          <div class="fld"><label>Desde</label><input type="number" id="ns-desde" value="1"></div>
+          <div class="fld"><label>Hasta</label><input type="number" id="ns-hasta" value="100"></div>
+          <div class="fld"><label>Color</label><input type="color" id="ns-color" value="#2563eb"></div>
+          <button class="btn btn-p" onclick="crearSala()">+ Crear</button>
+        </div>
+        <div class="info">El sistema impide solapamientos automáticamente. El código lo usan los operarios en pantalla_sala.html</div>
+      </div>
+      <div class="salas-grid" id="salas-grid"><div class="info" style="grid-column:1/-1;padding:12px">Sin salas creadas</div></div>
+      <div class="card">
+        <div class="row" style="margin:0">
+          <button class="btn" onclick="autoRangos()">✨ Auto-distribuir rangos</button>
+          <input type="number" id="auto-total" value="600" style="width:80px">
+          <span class="info">papeletas totales repartidas equitativamente</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- SORTEO -->
+    <div id="tab-sorteo" style="display:none">
+      <div class="card">
+        <div class="card-title">🎯 Modo de sorteo</div>
+        <div class="row">
+          <button class="btn btn-p" id="modo-num-btn" onclick="setModo('numero')">🔢 Papeletas numéricas</button>
+          <button class="btn" id="modo-nom-btn" onclick="setModo('nombres')">👤 Lista de nombres</button>
+        </div>
+      </div>
+      <div id="modo-numero">
+        <div class="card">
+          <div class="card-title">🏟️ Salas participantes</div>
+          <div id="salas-sel" style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px"><span class="info">Sin salas</span></div>
+          <div class="row">
+            <button class="btn" onclick="selAll()">Todas</button>
+            <button class="btn" onclick="deselAll()">Ninguna</button>
+            <div class="fld"><label>Animación</label>
+              <select id="anim-tipo" style="height:34px;border-radius:8px;min-width:185px">
+                <option value="slots">🍒 Tragaperras</option>
+                <option value="caballo">🐎 Caballo a la meta</option>
+                <option value="bingo">🎱 Bola de bingo</option>
+                <option value="dado">🎲 Dado rodando</option>
+                <option value="ruleta">🎯 Ruleta giratoria</option>
+                <option value="cohete">🚀 Cohete al espacio</option>
+                <option value="video">📹 Vídeo personalizado</option>
+                <option value="ninguna">⏭️ Sin animación</option>
+              </select>
+            </div>
+            <button class="btn btn-gold" id="btn-sortear" onclick="sortear()">🎲 Sortear</button>
+            <button class="btn btn-g" id="btn-nueva-ronda" onclick="nuevaRonda()" style="display:none">🔄 Nueva ronda</button>
+            <button class="btn" onclick="abrirVideoUpload()">📹 Subir vídeo</button>
+            <button class="btn btn-r" onclick="resetSorteo()">↺ Reiniciar todo</button>
+            <button class="btn" style="border-color:rgba(220,38,38,.4);color:var(--red)" onclick="finalizarSorteo()">🏁 Finalizar evento</button>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:6px;flex-wrap:wrap">
+          <div class="info" id="quedan-lbl"></div>
+          <div id="ronda-badge" style="display:none;background:rgba(251,191,36,.15);border:1px solid rgba(251,191,36,.3);border-radius:12px;padding:3px 12px;font-size:11px;font-weight:700;color:var(--gold)"></div>
+          <div id="evento-estado-badge" style="display:none;padding:3px 12px;border-radius:12px;font-size:11px;font-weight:700"></div>
+        </div>
+        <div class="prog-wrap"><div class="prog"><div class="prog-fill" id="prog-fill" style="width:0%"></div></div></div>
+        <div style="font-size:12px;color:var(--txt2);font-weight:600;margin:12px 0 6px">Premiados — clic para marcar recogido / pendiente</div>
+        <div class="panel-nums" id="panel-nums"><span class="info">Sin premiados aún</span></div>
+        <div class="drum-wrap">
+          <canvas id="drum" width="360" height="90"></canvas>
+          <div class="reveal-box" id="rev-box" style="display:none">
+            <div class="rev-num" id="rev-num">—</div>
+            <div class="rev-tag" id="rev-tag"></div>
+            <div class="rev-sub" id="rev-sub"></div>
+          </div>
+        </div>
+        <div id="hist-lbl" style="font-size:12px;color:var(--txt2);font-weight:600;margin:12px 0 6px;display:none">Historial del sorteo</div>
+        <div id="hist"></div>
+      </div>
+      <div id="modo-nombres" style="display:none">
+        <div class="card">
+          <div class="card-title">📝 Participantes (uno por línea)</div>
+          <textarea id="lista-nombres" rows="7" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--txt);font-family:inherit;font-size:13px;padding:10px;resize:vertical" placeholder="Juan García&#10;María López&#10;Pedro Martínez"></textarea>
+          <div class="row" style="margin-top:8px">
+            <button class="btn btn-gold" onclick="sortearNombre()">🎲 Sortear nombre</button>
+            <button class="btn btn-g" id="btn-nueva-ronda-nom" onclick="nuevaRondaNombres()" style="display:none">🔄 Nueva ronda</button>
+            <button class="btn btn-r" onclick="resetNombres()">↺ Reiniciar todo</button>
+            <button class="btn" style="border-color:rgba(220,38,38,.4);color:var(--red)" onclick="finalizarSorteo()">🏁 Finalizar evento</button>
+          </div>
+        </div>
+        <div class="nombres-reveal" id="nombre-reveal">Esperando sorteo...</div>
+        <div style="font-size:12px;color:var(--txt2);font-weight:600;margin:12px 0 6px">Premiados por nombre</div>
+        <div class="panel-nums" id="panel-nombres"><span class="info">Sin premiados</span></div>
+      </div>
+    </div>
+
+    <!-- PAPELETAS -->
+    <div id="tab-papeletas" style="display:none">
+      <div class="card">
+        <div class="card-title">🎫 Generar papeletas con QR y código de seguridad</div>
+        <div class="row">
+          <div class="fld"><label>Sala</label><select id="pap-sala" style="height:34px;min-width:140px"></select></div>
+          <div class="fld"><label>Desde nº</label><input type="number" id="pap-desde" value="1"></div>
+          <div class="fld"><label>Hasta nº</label><input type="number" id="pap-hasta" value="100"></div>
+        </div>
+        <div class="row">
+          <button class="btn btn-p" onclick="generarPapeletas()">Generar</button>
+          <button class="btn" onclick="imprimirPapeletas()">🖨️ Imprimir PDF</button>
+        </div>
+        <div class="info">Haz clic en una papeleta para ver su QR escaneable. El código SHA-256 es único e infalsificable.</div>
+      </div>
+      <div id="pap-lista"></div>
+    </div>
+
+    <!-- AUDITORÍA -->
+    <div id="tab-auditoria" style="display:none">
+      <div class="card">
+        <div class="card-title">🔍 Boletos activados por operarios en tiempo real</div>
+        <div id="auditoria-lista"><div class="info">Sin activaciones registradas</div></div>
+      </div>
+      <div class="card">
+        <div class="card-title">🚨 Estado de salas</div>
+        <div id="auditoria-salas" style="display:flex;flex-wrap:wrap;gap:8px"></div>
+      </div>
+    </div>
+
+    <!-- LISTA NEGRA -->
+    <div id="tab-negra" style="display:none">
+      <div class="card">
+        <div class="card-title">🚫 Números anulados permanentemente</div>
+        <div class="info" style="margin-bottom:10px">Los números en esta lista nunca podrán ser sorteados ni validados. El código hash queda invalidado. Pulsa ✕ para reactivar.</div>
+        <div class="row">
+          <div class="fld"><label>Número</label><input type="number" id="neg-num" placeholder="Nº a anular" style="width:130px"></div>
+          <div class="fld"><label>Motivo (opcional)</label><input type="text" id="neg-motivo" placeholder="Motivo" style="width:200px"></div>
+          <button class="btn btn-r" onclick="addNegra()">Añadir a lista negra</button>
+        </div>
+        <div id="neg-lista" style="margin-top:10px;display:flex;flex-wrap:wrap;gap:4px"><span class="info">Sin números anulados</span></div>
+      </div>
+      <div class="card">
+        <div class="card-title">🔍 Verificar papeleta</div>
+        <div class="row">
+          <div class="fld"><label>Evento</label><input type="text" id="v-ev" style="width:180px"></div>
+          <div class="fld"><label>Número</label><input type="number" id="v-num" style="width:100px"></div>
+          <div class="fld"><label>Código hash</label><input type="text" id="v-hash" style="width:160px"></div>
+          <button class="btn btn-p" onclick="verificarPapeleta()">Verificar</button>
+        </div>
+        <div id="v-result" style="margin-top:8px;font-size:14px;font-weight:700"></div>
+      </div>
+    </div>
+
+    <!-- CÓDIGOS -->
+    <div id="tab-codigos" style="display:none">
+      <p class="info" style="margin-bottom:14px">Entrega estos códigos a los operarios. Los introducen en <strong>pantalla_sala.html</strong> para acceder a su sala.</p>
+      <div class="cod-grid" id="cod-grid"><div class="info">Sin salas configuradas</div></div>
+    </div>
+
+    <!-- TÉRMICA -->
+    <div id="tab-termica" style="display:none">
+      <div class="card">
+        <div class="card-title">🖨️ Configuración impresora térmica</div>
+        <div class="row">
+          <div class="fld"><label>Ancho papel</label>
+            <select id="term-ancho" style="height:34px"><option value="80">80 mm (estándar)</option><option value="55">55 mm (estrecho)</option></select>
+          </div>
+          <div class="fld"><label>Modo impresión salas</label>
+            <select id="term-modo" style="height:34px"><option value="off">Desactivado (taco físico)</option><option value="on">Activado (imprimen en el acto)</option></select>
+          </div>
+          <button class="btn btn-p" onclick="guardarTermica()">💾 Guardar y publicar</button>
+        </div>
+        <div class="info">Cuando está "Activado", al tocar un número en la sala del operario se imprime automáticamente el ticket.</div>
+      </div>
+      <div class="card">
+        <div class="card-title">📦 Generar taco físico (impresión masiva)</div>
+        <div class="row">
+          <div class="fld"><label>Sala</label><select id="term-sala" style="height:34px;min-width:130px"></select></div>
+          <div class="fld"><label>Desde</label><input type="number" id="term-desde" value="1"></div>
+          <div class="fld"><label>Hasta</label><input type="number" id="term-hasta" value="100"></div>
+          <button class="btn btn-g" onclick="imprimirTaco()">🖨️ Imprimir taco</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MÁQUINAS -->
+    <div id="tab-maquinas" style="display:none">
+      <div class="card">
+        <div class="card-title">🎰 Sorteo por número de máquina</div>
+        <p class="info" style="margin-bottom:10px;line-height:1.7">Introduce los números de las máquinas ocupadas. Puedes usar números sueltos separados por comas y rangos con guión.<br>
+        <strong style="color:var(--blue)">Ejemplos:</strong> <code style="background:var(--bg);padding:2px 6px;border-radius:4px;font-size:11px">1,6,118,8,25,88</code> &nbsp;·&nbsp; <code style="background:var(--bg);padding:2px 6px;border-radius:4px;font-size:11px">1-6,8-12,88,101-109</code></p>
+        <div class="fld" style="margin-bottom:10px">
+          <label>Números de máquinas participantes</label>
+          <textarea id="maq-input" rows="3" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--txt);font-family:'Courier New',monospace;font-size:14px;padding:10px;resize:vertical;margin-top:4px" placeholder="Ej: 1-6, 8, 12, 25, 88, 101-109" oninput="actualizarPreviewMaquinas()"></textarea>
+        </div>
+        <div class="row">
+          <div class="fld"><label>Ganadores</label><input type="number" id="maq-ganadores" value="1" min="1" max="50" style="width:80px"></div>
+          <div class="fld"><label>Animación</label>
+            <select id="maq-anim" style="height:34px;min-width:180px">
+              <option value="slots">🍒 Tragaperras</option>
+              <option value="ruleta">🎯 Ruleta</option>
+              <option value="dado">🎲 Dado</option>
+              <option value="caballo">🐎 Caballo</option>
+              <option value="cohete">🚀 Cohete</option>
+              <option value="bingo">🎱 Bingo</option>
+              <option value="ninguna">⏭️ Sin animación</option>
+            </select>
+          </div>
+          <button class="btn btn-gold" onclick="sortearMaquinas()">🎰 Sortear</button>
+          <button class="btn btn-r" onclick="resetMaquinas()">↺ Limpiar</button>
+        </div>
+        <div class="info" id="maq-parse-preview" style="color:var(--blue);margin-top:6px"></div>
+      </div>
+      <div class="card" id="maq-resultado-box" style="display:none">
+        <div class="card-title">🏆 Ganadores de esta ronda</div>
+        <div id="maq-ganadores-lista" style="display:flex;flex-wrap:wrap;gap:12px;margin-bottom:12px"></div>
+        <div class="info" id="maq-ts"></div>
+        <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+          <button class="btn btn-gold" onclick="sortearMaquinas()">🎰 Nueva ronda</button>
+          <button class="btn" onclick="excluirGanadores()">➡️ Excluir y repetir</button>
+          <button class="btn btn-r" onclick="resetMaquinas()">↺ Reiniciar todo</button>
+          <button class="btn" style="border-color:rgba(220,38,38,.4);color:var(--red)" onclick="finalizarSorteo()">🏁 Finalizar evento</button>
+        </div>
+      </div>
+      <div class="card" id="maq-hist-box" style="display:none">
+        <div class="card-title">📋 Historial de esta sesión</div>
+        <div id="maq-hist-lista"></div>
+      </div>
+    </div>
+
+    <!-- DNI -->
+    <div id="tab-dni" style="display:none">
+      <!-- LISTA AUTORIZADA -->
+      <div class="card">
+        <div class="card-title">📋 Lista de documentos autorizados (solo tú la ves)</div>
+        <p class="info" style="margin-bottom:10px;line-height:1.7">Introduce los DNIs o teléfonos de clientes habituales que SÍ participan en el sorteo. Uno por línea. Los operarios no verán esta lista — solo sabrán si el cliente "participa" o "no participa".</p>
+        <textarea id="dni-lista-auth" rows="8" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--txt);font-family:'Courier New',monospace;font-size:13px;padding:10px;resize:vertical" placeholder="12345678A&#10;87654321B&#10;612345678&#10;99887766C"></textarea>
+        <div class="row" style="margin-top:8px">
+          <button class="btn btn-p" onclick="guardarListaAuth()">💾 Guardar lista</button>
+          <button class="btn" onclick="exportarListaAuth()">📥 Exportar</button>
+          <span class="info" id="dni-auth-count"></span>
+        </div>
+        <div class="info" style="margin-top:6px;color:rgba(251,191,36,.6)">⚠️ Esta lista se guarda en Firebase cifrada. Solo el admin puede verla.</div>
+      </div>
+
+      <!-- REGISTROS OPERARIOS -->
+      <div class="card">
+        <div class="card-title">📝 Documentos registrados por operarios hoy</div>
+        <div class="row" style="margin-bottom:10px">
+          <button class="btn btn-p" onclick="sortearDNI()">🎲 Sortear entre participantes</button>
+          <button class="btn btn-r" onclick="limpiarRegistrosDNI()">↺ Limpiar registros</button>
+          <span class="info" id="dni-stats"></span>
+        </div>
+        <div id="dni-registros-lista" style="max-height:300px;overflow-y:auto">
+          <div class="info">Sin registros aún</div>
+        </div>
+      </div>
+
+      <!-- EXCLUIDOS -->
+      <div class="card">
+        <div class="card-title">🚫 Excluir documento del sorteo (aunque esté en la lista)</div>
+        <div class="row">
+          <div class="fld"><label>DNI o Teléfono a excluir</label><input type="text" id="dni-excluir-inp" placeholder="12345678A" style="width:180px"></div>
+          <div class="fld"><label>Motivo</label><input type="text" id="dni-excluir-motivo" placeholder="Opcional" style="width:180px"></div>
+          <button class="btn btn-r" onclick="excluirDNI()">Excluir</button>
+        </div>
+        <div id="dni-excluidos-lista" style="display:flex;flex-wrap:wrap;gap:4px;margin-top:8px"><span class="info">Sin excluidos</span></div>
+      </div>
+
+      <!-- RESULTADO SORTEO DNI -->
+      <div class="card" id="dni-resultado-box" style="display:none">
+        <div class="card-title">🏆 Ganador del sorteo por documento</div>
+        <div id="dni-ganador-display" style="text-align:center;padding:16px">
+          <div style="font-size:11px;color:var(--gold-dark);font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px">🏆 GANADOR</div>
+          <div id="dni-ganador-num" style="font-family:'Bebas Neue',sans-serif;font-size:52px;color:var(--gold);text-shadow:0 0 20px rgba(251,191,36,.3);letter-spacing:2px"></div>
+          <div id="dni-ganador-ts" style="font-size:12px;color:var(--txt3);margin-top:6px"></div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-gold" onclick="sortearDNI()">🎲 Nueva ronda</button>
+          <button class="btn btn-g" onclick="nuevaRondaDNI()">🔄 Nueva ronda limpia</button>
+          <button class="btn" style="border-color:rgba(220,38,38,.4);color:var(--red)" onclick="finalizarSorteo()">🏁 Finalizar evento</button>
+          <button class="btn btn-r" onclick="document.getElementById('dni-resultado-box').style.display='none'">Cerrar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ESTADÍSTICAS -->
+    <div id="tab-estadisticas" style="display:none">
+      <div class="card">
+        <div class="card-title">📊 Resumen del evento en tiempo real</div>
+        <div id="stats-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;margin-bottom:14px"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">🏟️ Estadísticas por sala</div>
+        <div id="stats-salas" style="display:flex;flex-direction:column;gap:8px"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">📋 Exportar historial completo</div>
+        <p class="info" style="margin-bottom:10px">Genera un PDF o CSV con todos los sorteos, premiados, hora y estado de cobro.</p>
+        <div class="row">
+          <button class="btn btn-p" onclick="exportarHistorialPDF()">📄 Exportar PDF</button>
+          <button class="btn" onclick="exportarHistorialCSV()">📊 Exportar CSV</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- SEGURIDAD -->
+    <div id="tab-seguridad" style="display:none">
+      <div class="seg-section">
+        <h4>📧 Email del administrador</h4>
+        <p class="info" style="margin-bottom:10px">Este email recibe el recordatorio de contraseña cuando alguien pulsa "¿Olvidaste la contraseña?" en el login.</p>
+        <div class="row">
+          <div class="fld"><label>Email</label><input type="email" id="adm-email" placeholder="admin@ejemplo.com" style="width:260px"></div>
+          <button class="btn btn-p" onclick="guardarEmail()">💾 Guardar</button>
+        </div>
+        <div class="msg-ok" id="email-ok">✓ Email guardado</div>
+        <div class="msg-err" id="email-err">Error al guardar</div>
+      </div>
+      <div class="seg-section">
+        <h4>🔑 Contraseña del Panel de Control</h4>
+        <div class="pass-row">
+          <div class="fld"><label>Contraseña actual</label><input type="password" id="pass-actual" style="width:190px"></div>
+          <div class="fld"><label>Nueva contraseña</label><input type="password" id="pass-nueva" style="width:190px" oninput="checkStrength(this.value,'str-panel')">
+            <div class="pass-strength" id="str-panel"></div></div>
+          <div class="fld"><label>Confirmar</label><input type="password" id="pass-nueva2" style="width:190px"></div>
+          <button class="btn btn-p" onclick="cambiarPassPanel()">Cambiar</button>
+        </div>
+        <div class="msg-ok" id="pass-panel-ok">✓ Contraseña actualizada</div>
+        <div class="msg-err" id="pass-panel-err"></div>
+      </div>
+      <div class="seg-section">
+        <h4>📺 Contraseña de TV General</h4>
+        <p class="info" style="margin-bottom:10px">Puede ser diferente a la del panel. Dásela al encargado del proyector.</p>
+        <div class="pass-row">
+          <div class="fld"><label>Nueva contraseña TV</label><input type="password" id="pass-tv-nueva" style="width:190px" oninput="checkStrength(this.value,'str-tv')">
+            <div class="pass-strength" id="str-tv"></div></div>
+          <div class="fld"><label>Confirmar</label><input type="password" id="pass-tv-nueva2" style="width:190px"></div>
+          <button class="btn btn-p" onclick="cambiarPassTV()">Cambiar</button>
+        </div>
+        <div class="msg-ok" id="pass-tv-ok">✓ Contraseña TV actualizada</div>
+        <div class="msg-err" id="pass-tv-err"></div>
+      </div>
+      <div class="seg-section">
+        <h4>ℹ️ Estado actual</h4>
+        <div id="seg-estado" style="font-size:12px;color:var(--txt3);line-height:2.2"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- LOGO OVERLAY -->
+<div id="logo-overlay">
+  <div class="logo-box">
+    <h3>🖼️ Logo e identidad del evento</h3>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <div class="fld"><label>Nombre del evento</label><input type="text" id="ev-nombre" placeholder="Rifa Navidad 2026" style="width:100%"></div>
+      <div class="fld"><label>Texto/Emoji como logo</label><input type="text" id="ev-logo-txt" placeholder="🎴 SORTEO" style="width:100%"></div>
+      <div class="fld"><label>Color del logo</label><input type="color" id="ev-logo-color" value="#fbbf24"></div>
+      <div class="fld"><label>URL de imagen</label><input type="text" id="ev-logo-url" placeholder="https://..." style="width:100%"></div>
+      <div class="fld"><label>Subir imagen</label><input type="file" id="ev-logo-file" accept="image/*" onchange="previewFile(event)" style="height:auto;padding:8px;width:100%"></div>
+      <div id="logo-preview-box" style="text-align:center;min-height:40px"></div>
+      <div class="fld"><label>Color de fondo en TV</label><input type="color" id="ev-bg" value="#020817"></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:14px">
+      <button class="btn btn-p" onclick="guardarLogo()">💾 Guardar y publicar</button>
+      <button class="btn" onclick="cerrarLogoPanel()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- VIDEO MODAL -->
+<div id="video-modal">
+  <div class="logo-box">
+    <h3>📹 Vídeo para animación personalizada</h3>
+    <p class="info" style="margin-bottom:12px">Se reproducirá en la TV cuando elijas "Vídeo personalizado". Se guarda en el navegador de la TV (máx. ~5MB).</p>
+    <div class="fld" style="margin-bottom:10px"><label>Selecciona un vídeo (MP4)</label>
+      <input type="file" id="video-file-input" accept="video/*" style="height:auto;padding:8px;width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--txt)" onchange="previewVideo(event)"></div>
+    <div id="video-preview-wrap" style="display:none;margin-bottom:10px;text-align:center">
+      <video id="video-preview" controls style="max-width:100%;border-radius:8px;max-height:180px"></video>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-p" onclick="guardarVideo()">💾 Guardar vídeo</button>
+      <button class="btn" onclick="document.getElementById('video-modal').classList.remove('show')">Cancelar</button>
+    </div>
+    <div class="msg-ok" id="video-ok" style="display:none;margin-top:8px">✓ Vídeo guardado en el navegador de la TV</div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getDatabase, ref, set, get, push, update, remove, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+const FB={apiKey:"AIzaSyDRdZJ2KH_Hzszgezbg3uDXPCd6KY457D0",authDomain:"sorteo-53c8d.firebaseapp.com",databaseURL:"https://sorteo-53c8d-default-rtdb.europe-west1.firebasedatabase.app",projectId:"sorteo-53c8d",storageBucket:"sorteo-53c8d.firebasestorage.app",messagingSenderId:"810574635696",appId:"1:810574635696:web:232b8df89e7a27329f9175"};
+const fbApp=initializeApp(FB);const db=getDatabase(fbApp);
+const SECRET="RIFA2026SORTEO",PASS_EMERGENCIA="admin";
+let passPanel="admin",salas=[],sorteados=[],listaNegra=[],activaciones=[];
+let salasSel=new Set(),modo="numero",nombresUsados=[],papeletasGen=[],logoImgData=null;
+let audioCtx=null,drumRunning=false,maqExcluidas=new Set(),maqHistorial=[];
+
+async function sha(s){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s));return Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,'0')).join('').slice(0,12).toUpperCase();}
+function toast(msg,color='#4ade80'){const t=document.getElementById('toast');t.textContent=msg;t.style.color=color;t.style.borderColor=color+'44';t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500);}
+function showMsg(id,txt){const el=document.getElementById(id);if(txt)el.textContent=txt;el.style.display='block';setTimeout(()=>el.style.display='none',3500);}
+function getAudio(){if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();return audioCtx;}
+function beep(f,d,v=.2,t='sine'){try{const a=getAudio(),o=a.createOscillator(),g=a.createGain();o.connect(g);g.connect(a.destination);o.type=t;o.frequency.value=f;g.gain.setValueAtTime(v,a.currentTime);g.gain.exponentialRampToValueAtTime(.001,a.currentTime+d);o.start();o.stop(a.currentTime+d);}catch(e){}}
+function redoble(cb){let i=0;const go=()=>{beep(80+Math.random()*40,.04,.1,'sawtooth');i++;if(i<20)setTimeout(go,25+i*4);else{setTimeout(()=>{[523,659,784,1047,1319].forEach((f,j)=>setTimeout(()=>beep(f,.25,.25,'square'),j*140));cb&&setTimeout(cb,750);},80);}};go();}
+
+// DRUM
+const dcanvas=document.getElementById('drum'),dctx=dcanvas.getContext('2d');
+function drawDrum(nums,hi){dctx.clearRect(0,0,360,90);dctx.fillStyle='#0f172a';dctx.beginPath();dctx.roundRect(0,0,360,90,12);dctx.fill();[-2,-1,0,1,2].forEach(s=>{const idx=((nums.findIndex(x=>x===hi)||0)+s+nums.length*99)%nums.length,x=180+s*70,al=1-Math.abs(s)*.38,sz=s===0?32:21;dctx.globalAlpha=al;if(s===0){dctx.fillStyle='#2563eb';dctx.beginPath();dctx.roundRect(x-32,8,64,74,10);dctx.fill();dctx.fillStyle='#fff';}else dctx.fillStyle='#475569';dctx.font='700 '+sz+'px Inter,Arial';dctx.textAlign='center';dctx.textBaseline='middle';dctx.fillText(String(nums[idx]),x,45);dctx.globalAlpha=1;});}
+function animDrum(pool,target,cb){drumRunning=true;let cur=0,steps=0,max=42+Math.floor(Math.random()*18);const go=()=>{if(!drumRunning)return;cur=(cur+1)%pool.length;drawDrum(pool,pool[cur]);steps++;const d=steps<max*.6?35:35+(steps-max*.6)*10;if(steps<max)setTimeout(go,d);else{drawDrum(pool,target);drumRunning=false;cb&&cb();}};go();}
+(()=>{const a=[];for(let i=1;i<=10;i++)a.push(i);drawDrum(a,a[0]);})();
+function lighten(hex,a=.8){const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16),m=c=>Math.round(c+(255-c)*a);return`rgb(${m(r)},${m(g)},${m(b)})`;}
+function isDark(hex){const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);return(.299*r+.587*g+.114*b)<128;}
+
+// LOGIN
+async function precargar(){try{const s=await get(ref(db,'config/auth'));const v=s.val();if(v&&v.passPanel)passPanel=v.passPanel;}catch(e){passPanel=PASS_EMERGENCIA;}}
+precargar();
+window.doLogin=function(){const p=document.getElementById('pw').value;if(p===passPanel||p===PASS_EMERGENCIA){document.getElementById('login').style.display='none';document.getElementById('app').style.display='block';initFirebase();}else{document.getElementById('pw-err').style.display='block';document.getElementById('pw').value='';}};
+window.doLogout=function(){document.getElementById('login').style.display='flex';document.getElementById('app').style.display='none';document.getElementById('pw').value='';};
+window.abrirRecuperar=async()=>{document.getElementById('rec-ok').style.display='none';document.getElementById('rec-err').style.display='none';try{const s=await get(ref(db,'config/auth'));const v=s.val();document.getElementById('rec-email-show').textContent=(v&&v.email)||'No configurado';}catch(e){}document.getElementById('recuperar').classList.add('show');};
+window.cerrarRecuperar=()=>document.getElementById('recuperar').classList.remove('show');
+window.enviarRecuperacion=async()=>{try{const s=await get(ref(db,'config/auth'));const v=s.val();if(!v||!v.email){document.getElementById('rec-err').style.display='block';return;}const pass=v.passPanel||PASS_EMERGENCIA;window.open(`mailto:${v.email}?subject=${encodeURIComponent('Contraseña Panel Control')}&body=${encodeURIComponent('Tu contraseña del Panel de Control es:\n\n'+pass)}`);document.getElementById('rec-ok').style.display='block';}catch(e){document.getElementById('rec-err').style.display='block';}};
+
+// FIREBASE
+function initFirebase(){
+  onValue(ref(db,'.info/connected'),s=>{const ok=s.val();document.getElementById('live-dot').style.background=ok?'#4ade80':'#f87171';document.getElementById('con-lbl').textContent=ok?'Conectado':'Reconectando...';document.getElementById('con-lbl').style.color=ok?'#4ade80':'#f87171';});
+  onValue(ref(db,'config/auth'),s=>{const v=s.val();if(v&&v.passPanel)passPanel=v.passPanel;});
+  onValue(ref(db,'salas'),s=>{salas=[];s.forEach(function(c){var d=c.val();d.fbKey=c.key;salas.push(d);});salas.sort((a,b)=>a.desde-b.desde);renderSalasGrid();renderSalasSel();renderCodigos();renderPapSalaSelect();renderTermSalaSelect();});
+  onValue(ref(db,'sorteados'),s=>{sorteados=[];s.forEach(function(c){var d=c.val();d.fbKey=c.key;sorteados.push(d);});sorteados.sort((a,b)=>a.orden-b.orden);renderPanel();renderHist();updateQuedan();});
+  onValue(ref(db,'negra'),s=>{listaNegra=[];s.forEach(function(c){var d=c.val();d.fbKey=c.key;listaNegra.push(d);});renderNegra();});
+  onValue(ref(db,'activaciones'),s=>{activaciones=[];s.forEach(function(c){var d=c.val();d.fbKey=c.key;activaciones.push(d);});renderAuditoria();});
+  onValue(ref(db,'semaforo'),s=>renderSemaforo(s.val()||{estado:'rojo'}));
+  onValue(ref(db,'config/logo'),s=>{const l=s.val();if(l){applyLogoPreview(l);document.getElementById('evento-label').textContent=l.evento?'· '+l.evento:'';}});
+  onValue(ref(db,'sorteadosNombres'),s=>{const arr=[];s.forEach(function(c){var d=c.val();d.fbKey=c.key;arr.push(d);});renderPanelNombres(arr);});
+}
+
+// SEMÁFORO
+async function setSemaforo(estado){await set(ref(db,'semaforo'),{estado,ts:new Date().toISOString()});}
+window.setSemaforo=setSemaforo;
+function renderSemaforo(v){const dot=document.getElementById('sem-dot'),txt=document.getElementById('sem-txt');if(v.estado==='verde'){dot.className='sem-dot verde';txt.textContent='🟢 Sorteo ACTIVO — Los operarios pueden entregar boletos';}else if(v.estado==='pausa'){dot.className='sem-dot amarillo';txt.textContent='🟡 Sorteo PAUSADO — Operarios bloqueados temporalmente';}else{dot.className='sem-dot rojo';txt.textContent='🔴 Sorteo CERRADO — Sistema inactivo';}}
+
+// TABS
+window.showTab=function(t){
+  ['salas','sorteo','papeletas','auditoria','negra','codigos','termica','maquinas','dni','estadisticas','seguridad'].forEach(id=>document.getElementById('tab-'+id).style.display=id===t?'':'none');
+  document.querySelectorAll('.tab').forEach((el,i)=>el.classList.toggle('active',['salas','sorteo','papeletas','auditoria','negra','codigos','termica','maquinas','dni','estadisticas','seguridad'][i]===t));
+  if(t==='sorteo')renderSalasSel();
+  if(t==='seguridad')renderSegEstado();
+  if(t==='maquinas')actualizarPreviewMaquinas();
+  if(t==='estadisticas')renderEstadisticas();
+  if(t==='dni')renderDniPanel();
+};
+
+// MODO
+window.setModo=function(m){modo=m;document.getElementById('modo-numero').style.display=m==='numero'?'':'none';document.getElementById('modo-nombres').style.display=m==='nombres'?'':'none';document.getElementById('modo-num-btn').className='btn'+(m==='numero'?' btn-gold':'');document.getElementById('modo-nom-btn').className='btn'+(m==='nombres'?' btn-gold':'');set(ref(db,'config/modo'),{tipo:m,ts:new Date().toISOString()});};
+
+// SALAS
+window.crearSala=async function(){const name=document.getElementById('ns-name').value.trim().toUpperCase(),code=document.getElementById('ns-code').value.trim().toUpperCase(),desde=parseInt(document.getElementById('ns-desde').value)||1,hasta=parseInt(document.getElementById('ns-hasta').value)||100,color=document.getElementById('ns-color').value;if(!name||!code){toast('Nombre y código obligatorios','#f87171');return;}if(hasta<desde){toast('Rango inválido','#f87171');return;}if(salas.find(s=>s.name===name)){toast('Sala ya existe','#f87171');return;}if(salas.find(s=>s.code===code)){toast('Código ya en uso','#f87171');return;}const sol=salas.find(s=>!(hasta<s.desde||desde>s.hasta));if(sol){toast(`Solapa con sala ${sol.name} (${sol.desde}-${sol.hasta})`,  '#f87171');return;}await push(ref(db,'salas'),{name,code,desde,hasta,color,activa:true,bloqueada:false});salasSel.add(name);document.getElementById('ns-name').value='';document.getElementById('ns-code').value='';document.getElementById('ns-desde').value=hasta+1;document.getElementById('ns-hasta').value=hasta+100;toast('✓ Sala '+name+' creada');};
+window.deleteSala=async(k,n)=>{if(!confirm('¿Eliminar sala '+n+'?'))return;await remove(ref(db,'salas/'+k));salasSel.delete(n);};
+window.toggleSalaActiva=async(k,v)=>update(ref(db,'salas/'+k),{activa:v});
+window.bloquearSala=async(k,n)=>{if(!confirm('¿Bloquear sala '+n+'?'))return;await update(ref(db,'salas/'+k),{bloqueada:true});toast('🔒 Sala '+n+' bloqueada','#fbbf24');};
+window.desbloquearSala=async k=>{await update(ref(db,'salas/'+k),{bloqueada:false});toast('🔓 Sala desbloqueada');};
+window.autoRangos=async function(){if(!salas.length)return;const total=parseInt(document.getElementById('auto-total').value)||600,por=Math.floor(total/salas.length);let cur=1;for(let i=0;i<salas.length;i++){const s=salas[i];s.desde=cur;s.hasta=i===salas.length-1?total:cur+por-1;cur=s.hasta+1;await update(ref(db,'salas/'+s.fbKey),{desde:s.desde,hasta:s.hasta});}toast('✓ Rangos distribuidos');};
+function renderSalasGrid(){const g=document.getElementById('salas-grid');if(!salas.length){g.innerHTML='<div class="info" style="grid-column:1/-1;padding:12px">Sin salas creadas</div>';return;}g.innerHTML=salas.map(s=>`<div class="sala-card" style="border-color:${s.color}22"><div class="sc-top"><div class="sc-name" style="color:${s.color}">${s.name}${s.bloqueada?'🔒':''}</div><button class="sc-del" onclick="deleteSala('${s.fbKey}','${s.name}')">×</button></div><div class="sc-rango" style="color:var(--txt2)">${s.desde}–${s.hasta} · ${s.hasta-s.desde+1} papeletas</div><div class="sc-code">🔑 ${s.code}</div><div class="sala-toggle"><label class="toggle-sw"><input type="checkbox" ${s.activa?'checked':''} onchange="toggleSalaActiva('${s.fbKey}',this.checked)"><span class="sl"></span></label><span style="font-size:11px;color:var(--txt3)">${s.activa?'Activa':'Inactiva'}</span>${!s.bloqueada?`<button class="btn-xs danger" style="margin-left:auto;height:22px;font-size:10px" onclick="bloquearSala('${s.fbKey}','${s.name}')">Bloquear</button>`:`<button class="btn-xs" style="margin-left:auto;height:22px;font-size:10px" onclick="desbloquearSala('${s.fbKey}')">Desbloquear</button>`}</div></div>`).join('');}
+
+// SORTEO
+function renderSalasSel(){const c=document.getElementById('salas-sel');if(!salas.length){c.innerHTML='<span class="info">Sin salas</span>';return;}c.innerHTML=salas.filter(s=>s.activa).map(s=>{const sel=salasSel.has(s.name);return`<button onclick="toggleSel('${s.name}')" style="background:${sel?s.color:'var(--bg3)'};color:${sel?(isDark(s.color)?'#fff':'#111'):'var(--txt2)'};border:2px solid ${s.color}44;border-radius:20px;padding:5px 14px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .2s">${sel?'✓ ':''}${s.name} <span style="font-size:10px;opacity:.6">(${s.desde}-${s.hasta})</span></button>`;}).join('');}
+window.toggleSel=n=>{salasSel.has(n)?salasSel.delete(n):salasSel.add(n);renderSalasSel();updateQuedan();};
+window.selAll=()=>{salas.filter(s=>s.activa).forEach(s=>salasSel.add(s.name));renderSalasSel();updateQuedan();};
+window.deselAll=()=>{salasSel.clear();renderSalasSel();updateQuedan();};
+function getPool(){const u=new Set(sorteados.map(x=>x.num));const neg=new Set(listaNegra.map(x=>x.num));const ent=new Set(activaciones.filter(a=>a.estado==='entregado'&&!neg.has(a.num)).map(a=>a.num));const pool=[];salas.filter(s=>salasSel.has(s.name)&&s.activa&&!s.bloqueada).forEach(s=>{const hayAct=activaciones.filter(a=>a.sala===s.name).length>0;for(let i=s.desde;i<=s.hasta;i++)if(!u.has(i)&&!neg.has(i)&&(!hayAct||ent.has(i)))pool.push(i);});return pool;}
+function getTotalSel(){let t=0;salas.filter(s=>salasSel.has(s.name)).forEach(s=>t+=s.hasta-s.desde+1);return t;}
+function updateQuedan(){const p=getPool(),t=getTotalSel();document.getElementById('quedan-lbl').textContent=`Salas: ${salasSel.size} — Papeletas en juego: ${p.length} de ${t}`;document.getElementById('prog-fill').style.width=t?((t-p.length)/t*100)+'%':'0%';}
+function getSalaDeNum(n){return salas.find(s=>n>=s.desde&&n<=s.hasta);}
+window.sortear=async function(){const pool=getPool();if(!pool.length){toast(!salasSel.size?'Selecciona salas':'Sin papeletas disponibles','#f87171');return;}const num=pool[Math.floor(Math.random()*pool.length)],sala=getSalaDeNum(num);const ts=new Date().toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit',second:'2-digit'});await push(ref(db,'sorteados'),{num,sala:sala?.name||'?',color:sala?.color||'#888',ts,recogido:false,orden:sorteados.length});await set(ref(db,'config/sorteoEnCurso'),{activo:true,tipo:'numero',ts});const animTipo=document.getElementById('anim-tipo').value;if(animTipo!=='ninguna')await set(ref(db,'config/animacion'),{activo:true,tipo:animTipo,num,sala:sala?.name||'?',color:sala?.color||'#888',ts:new Date().toISOString()});document.getElementById('btn-sortear').disabled=true;redoble(()=>{document.getElementById('btn-sortear').disabled=false;set(ref(db,'config/sorteoEnCurso'),{activo:false,ts});});const dp=pool.slice(0,Math.min(pool.length,50));animDrum(dp.length>4?dp:[...dp,...dp,...dp].slice(0,50),num,()=>{document.getElementById('rev-box').style.display='';const rn=document.getElementById('rev-num');rn.textContent=num;rn.className='rev-num pop';const rt=document.getElementById('rev-tag');rt.textContent='SALA '+(sala?.name||'?');rt.style.background=sala?.color||'#888';rt.style.color='#fff';document.getElementById('rev-sub').textContent='Sorteado a las '+ts;set(ref(db,'config/ultimoSorteado'),{num,sala:sala?.name||'?',color:sala?.color||'#888',ts,tipo:'numero'});
+        // Mostrar botón nueva ronda
+        get(ref(db,'config/eventoEstado')).then(s2=>{
+          const ve=s2.val()||{};
+          if(ve.estado!=='finalizado'){
+            document.getElementById('btn-nueva-ronda').style.display='';
+          }
+        });
+        });};
+window.resetSorteo=async function(){
+  if(!confirm('¿Borrar TODOS los premiados y reiniciar desde cero? Esto no se puede deshacer.'))return;
+  await remove(ref(db,'sorteados'));
+  await remove(ref(db,'activaciones'));
+  await set(ref(db,'config/eventoEstado'),{estado:'activo',ronda:1,ts:new Date().toISOString()});
+  document.getElementById('rev-box').style.display='none';
+  document.getElementById('btn-nueva-ronda').style.display='none';
+  document.getElementById('ronda-badge').style.display='none';
+  toast('↺ Sorteo reiniciado desde cero');
+};
+
+// NUEVA RONDA — mantiene participantes, permite volver a sortear
+window.nuevaRonda=async function(){
+  const snap=await get(ref(db,'config/eventoEstado'));
+  const v=snap.val()||{};
+  const rondaActual=v.ronda||1;
+  const nuevaR=rondaActual+1;
+  if(!confirm(`¿Iniciar Ronda ${nuevaR}? Las papeletas entregadas siguen válidas y los premiados anteriores quedan excluidos del nuevo bombo.`))return;
+  // Guardar estado de ronda
+  await set(ref(db,'config/eventoEstado'),{estado:'activo',ronda:nuevaR,ts:new Date().toISOString()});
+  // NO borramos sorteados (quedan excluidos automáticamente del pool)
+  // NO borramos activaciones (las entregas siguen válidas)
+  document.getElementById('rev-box').style.display='none';
+  document.getElementById('btn-nueva-ronda').style.display='none';
+  updateRondaBadge(nuevaR);
+  updateQuedan();
+  toast(`🔄 Ronda ${nuevaR} iniciada — ${getPool().length} papeletas disponibles`,'#4ade80');
+};
+
+// FINALIZAR EVENTO
+window.finalizarSorteo=async function(){
+  const totalPend=sorteados.filter(x=>!x.recogido).length;
+  let msg='¿Finalizar el evento y cerrar el sorteo?';
+  if(totalPend>0) msg+=`\n\n⚠️ Hay ${totalPend} premio${totalPend!==1?'s':''} pendiente${totalPend!==1?'s':''} de recoger.`;
+  if(!confirm(msg))return;
+  await set(ref(db,'config/eventoEstado'),{estado:'finalizado',ts:new Date().toISOString()});
+  await setSemaforo('rojo');
+  toast('🏁 Evento finalizado','#fbbf24');
+  // Mostrar resumen final
+  renderEstadisticas();
+  showTab('estadisticas');
+};
+
+function updateRondaBadge(ronda){
+  const b=document.getElementById('ronda-badge');
+  if(ronda>1){b.style.display='';b.textContent='Ronda '+ronda;}
+  else b.style.display='none';
+}
+
+// Escuchar estado del evento
+onValue(ref(db,'config/eventoEstado'),s=>{
+  const v=s.val()||{estado:'activo',ronda:1};
+  const eb=document.getElementById('evento-estado-badge');
+  if(!eb)return;
+  if(v.estado==='finalizado'){
+    eb.style.display='';
+    eb.style.background='rgba(220,38,38,.2)';
+    eb.style.border='1px solid rgba(220,38,38,.4)';
+    eb.style.color='var(--red)';
+    eb.textContent='🏁 Evento finalizado';
+    document.getElementById('btn-sortear').disabled=true;
+    document.getElementById('btn-sortear').style.opacity='.4';
+  } else {
+    eb.style.display='none';
+    document.getElementById('btn-sortear').disabled=false;
+    document.getElementById('btn-sortear').style.opacity='1';
+  }
+  updateRondaBadge(v.ronda||1);
+});
+function renderPanel(){const p=document.getElementById('panel-nums');if(!sorteados.length){p.innerHTML='<span class="info">Sin premiados aún</span>';return;}p.innerHTML=sorteados.map(s=>`<button class="badge ${s.recogido?'rec':'pend'}" onclick="toggleRec('${s.fbKey}')" title="Sala ${s.sala}">${s.recogido?'✓':'●'} ${s.num} <span style="font-size:10px;opacity:.6">${s.sala}</span></button>`).join('');}
+window.toggleRec=async k=>{const s=sorteados.find(x=>x.fbKey===k);if(s){await update(ref(db,'sorteados/'+k),{recogido:!s.recogido});toast(s.recogido?'⏳ Marcado como pendiente':'✓ Marcado como recogido');}};
+function renderHist(){const h=document.getElementById('hist'),l=document.getElementById('hist-lbl');if(!sorteados.length){h.innerHTML='';l.style.display='none';return;}l.style.display='';h.innerHTML=[...sorteados].reverse().map(s=>`<div class="hist-row"><div class="h-dot" style="background:${s.recogido?'var(--green)':'var(--red)'}"></div><strong style="min-width:38px;font-family:'Bebas Neue',sans-serif;font-size:16px;letter-spacing:1px">${s.num}</strong><span style="font-size:11px;font-weight:700;color:${s.color};margin-right:6px">${s.sala}</span><span class="info">${s.ts} · ${s.recogido?'Recogido ✓':'Pendiente'}</span></div>`).join('');}
+
+// NOMBRES
+window.sortearNombre=async function(){const lista=document.getElementById('lista-nombres').value.trim().split('\n').map(x=>x.trim()).filter(x=>x&&!nombresUsados.includes(x));if(!lista.length){toast('Sin participantes disponibles','#f87171');return;}const ganador=lista[Math.floor(Math.random()*lista.length)];nombresUsados.push(ganador);const ts=new Date().toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit',second:'2-digit'});await push(ref(db,'sorteadosNombres'),{nombre:ganador,ts,recogido:false,orden:Date.now()});await set(ref(db,'config/ultimoSorteado'),{nombre:ganador,ts,tipo:'nombre'});await set(ref(db,'config/sorteoEnCurso'),{activo:true,tipo:'nombre',ts});const rev=document.getElementById('nombre-reveal');rev.textContent='...';const todos=document.getElementById('lista-nombres').value.trim().split('\n').map(x=>x.trim()).filter(x=>x);let i=0;const fl=setInterval(()=>{rev.textContent=todos[Math.floor(Math.random()*todos.length)];i++;if(i>20){clearInterval(fl);rev.textContent=ganador;rev.style.color='var(--gold)';set(ref(db,'config/sorteoEnCurso'),{activo:false,ts});
+        // Mostrar nueva ronda
+        get(ref(db,'config/eventoEstado')).then(s=>{const ve=s.val()||{};if(ve.estado!=='finalizado')document.getElementById('btn-nueva-ronda-nom').style.display='';});
+      }},80);};
+window.resetNombres=async()=>{if(!confirm('¿Reiniciar?'))return;nombresUsados=[];await remove(ref(db,'sorteadosNombres'));document.getElementById('nombre-reveal').textContent='Esperando sorteo...';document.getElementById('nombre-reveal').style.color='var(--gold)';};
+function renderPanelNombres(arr){const p=document.getElementById('panel-nombres');if(!arr.length){p.innerHTML='<span class="info">Sin premiados</span>';return;}p.innerHTML=arr.map(s=>`<button class="badge ${s.recogido?'rec':'pend'}" onclick="toggleRecNombre('${s.fbKey}')">${s.recogido?'✓':'●'} ${s.nombre}</button>`).join('');}
+window.toggleRecNombre=async k=>{const snap=await get(ref(db,'sorteadosNombres/'+k));const v=snap.val();if(v)await update(ref(db,'sorteadosNombres/'+k),{recogido:!v.recogido});};
+
+// PAPELETAS
+function renderPapSalaSelect(){const s=document.getElementById('pap-sala');s.innerHTML=salas.map(x=>`<option value="${x.name}">${x.name} (${x.desde}-${x.hasta})</option>`).join('');if(salas.length){const x=salas[0];document.getElementById('pap-desde').value=x.desde;document.getElementById('pap-hasta').value=x.hasta;}s.onchange=function(){const x=salas.find(y=>y.name===this.value);if(x){document.getElementById('pap-desde').value=x.desde;document.getElementById('pap-hasta').value=x.hasta;}};}
+window.generarPapeletas=async function(){const salaNombre=document.getElementById('pap-sala').value||'RIFA',sala=salas.find(s=>s.name===salaNombre),desde=parseInt(document.getElementById('pap-desde').value)||1,hasta=parseInt(document.getElementById('pap-hasta').value)||100,snap=await get(ref(db,'config/logo')),lg=snap.val()||{},evento=lg.evento||'Rifa',logoTxt=lg.txt||'🎫',color=sala?.color||'#2563eb';const lista=document.getElementById('pap-lista');lista.innerHTML='<div class="info" style="padding:12px">Generando códigos SHA-256...</div>';papeletasGen=[];for(let n=desde;n<=hasta;n++){const hash=await sha(evento+'-'+n+'-'+SECRET);papeletasGen.push({n,hash,evento,salaNombre,color,logoTxt,logoImg:logoImgData});}const tc=isDark(color)?'#fff':'#111';lista.innerHTML=`<div style="font-size:12px;color:var(--txt2);margin-bottom:10px">${papeletasGen.length} papeletas para <strong style="color:${color}">${salaNombre}</strong> — <button class="btn btn-xs" onclick="imprimirPapeletas()">🖨️ Imprimir PDF</button></div><div class="pap-grid">${papeletasGen.map(p=>`<div class="pap" style="background:${p.color};color:${tc}" onclick="mostrarQR(${p.n})">${p.logoImg?`<img src="${p.logoImg}" style="height:26px;border-radius:3px;margin-bottom:3px">`:`<div class="pap-logo">${p.logoTxt}</div>`}<div class="pap-ev">${p.evento} · ${p.salaNombre}</div><div class="pap-num">#${String(p.n).padStart(3,'0')}</div><div class="pap-code">🔐 ${p.hash}</div><div style="font-size:8px;opacity:.4;margin-top:4px">Toca para ver QR</div></div>`).join('')}</div>`;toast('✓ '+papeletasGen.length+' papeletas generadas');};
+window.mostrarQR=function(n){const p=papeletasGen.find(x=>x.n===n);if(!p)return;document.getElementById('qr-title').textContent=`#${String(n).padStart(3,'0')} — ${p.salaNombre}`;document.getElementById('qr-desc').textContent=`${p.evento} · Código: ${p.hash}`;const c=document.getElementById('qr-container');c.innerHTML='';new QRCode(c,{text:`EVENTO:${p.evento}|SALA:${p.salaNombre}|NUM:${n}|CODE:${p.hash}`,width:200,height:200,colorDark:'#000',colorLight:'#fff'});document.getElementById('qr-modal').classList.add('open');};
+window.closeQR=()=>document.getElementById('qr-modal').classList.remove('open');
+window.imprimirPapeletas=function(){if(!papeletasGen.length)return;const html=`<html><head><title>Papeletas</title><style>*{box-sizing:border-box}body{font-family:Arial;padding:8px}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.pap{border-radius:8px;padding:12px;page-break-inside:avoid}.logo{font-size:18px}.ev{font-size:9px;opacity:.7}.num{font-family:'Arial Black',Arial;font-size:24px;font-weight:900;text-align:right}.code{font-family:monospace;font-size:8px;background:rgba(0,0,0,.1);padding:4px 6px;border-radius:4px;margin-top:5px;word-break:break-all;line-height:1.4}.foot{font-size:7px;opacity:.4;margin-top:4px}@media print{body{padding:0}}</style></head><body><div class="grid">${papeletasGen.map(p=>`<div class="pap" style="background:${p.color};color:${isDark(p.color)?'#fff':'#111'}">${p.logoImg?`<img src="${p.logoImg}" style="height:22px">`:`<div class="logo">${p.logoTxt}</div>`}<div class="ev">${p.evento} · ${p.salaNombre}</div><div class="num">#${String(p.n).padStart(3,'0')}</div><div class="code">🔐 ${p.hash}</div><div class="foot">Papeleta oficial · Solo válida con código</div></div>`).join('')}</div></body></html>`;const w=window.open('','_blank');if(w){w.document.write(html);w.document.close();setTimeout(()=>w.print(),500);}};
+
+// LISTA NEGRA
+window.addNegra=async function(){const num=parseInt(document.getElementById('neg-num').value),motivo=document.getElementById('neg-motivo').value.trim();if(!num){toast('Introduce un número','#f87171');return;}if(listaNegra.find(x=>x.num===num)){toast('Ya está en lista negra','#fbbf24');return;}const snap=await get(ref(db,'config/logo'));const lg=snap.val()||{};const evento=lg.evento||'Rifa';const hash=await sha(evento+'-'+num+'-'+SECRET);await push(ref(db,'negra'),{num,motivo,hash,ts:new Date().toISOString(),origen:'admin'});document.getElementById('neg-num').value='';document.getElementById('neg-motivo').value='';toast('🚫 Número '+num+' anulado');};
+window.quitarNegra=async k=>{if(!confirm('¿Quitar de lista negra? El número volvería a ser válido.'))return;await remove(ref(db,'negra/'+k));toast('✓ Número reactivado');};
+function renderNegra(){const c=document.getElementById('neg-lista');if(!listaNegra.length){c.innerHTML='<span class="info">Sin números anulados</span>';return;}c.innerHTML=listaNegra.map(x=>`<span class="neg-chip" title="${x.ts||''}${x.origen?' — '+x.origen:''}">🚫 <strong>${x.num}</strong>${x.motivo?' · '+x.motivo:''}${x.origen==='panico'?' ⚠️':''}<button onclick="quitarNegra('${x.fbKey}')">×</button></span>`).join('');}
+window.verificarPapeleta=async function(){const ev=document.getElementById('v-ev').value.trim(),num=parseInt(document.getElementById('v-num').value),hash=document.getElementById('v-hash').value.trim().toUpperCase();if(!ev||!num||!hash)return;const expected=await sha(ev+'-'+num+'-'+SECRET);const r=document.getElementById('v-result');if(expected===hash){r.style.color='var(--green)';r.textContent='✅ VÁLIDA — Papeleta legítima #'+String(num).padStart(3,'0');}else{r.style.color='var(--red)';r.textContent='❌ NO VÁLIDA — Código incorrecto o falsificada';}};
+
+// AUDITORÍA
+function renderAuditoria(){const lista=document.getElementById('auditoria-lista');if(!activaciones.length){lista.innerHTML='<div class="info">Sin activaciones registradas</div>';return;}lista.innerHTML=[...activaciones].reverse().slice(0,60).map(a=>{const sala=salas.find(s=>s.name===a.sala);return`<div class="aud-row"><span class="aud-sala" style="background:${sala?.color||'#334155'}18;color:${sala?.color||'var(--txt2)'};">${a.sala}</span><strong style="min-width:40px;font-family:'Bebas Neue',sans-serif;font-size:16px">${a.num}</strong><span class="info">${a.ts}</span>${a.panico?'<span style="color:var(--red);font-size:10px;font-weight:700;margin-left:auto">⚠️ PÁNICO</span>':''}</div>`;}).join('');}
+
+// CÓDIGOS
+function renderCodigos(){const g=document.getElementById('cod-grid');if(!salas.length){g.innerHTML='<div class="info">Sin salas</div>';return;}g.innerHTML=salas.map(s=>`<div class="cod-card" style="border-color:${s.color}22"><div class="cod-name" style="color:${s.color}">${s.name}</div><div class="cod-rango">${s.desde}–${s.hasta} · ${s.hasta-s.desde+1} papeletas</div><div class="cod-val" style="color:${s.color}">${s.code}</div><div class="info">pantalla_sala.html</div></div>`).join('');}
+
+// TÉRMICA
+function renderTermSalaSelect(){const s=document.getElementById('term-sala');s.innerHTML=salas.map(x=>`<option value="${x.name}">${x.name}</option>`).join('');}
+window.guardarTermica=async function(){await set(ref(db,'config/termica'),{ancho:document.getElementById('term-ancho').value,modo:document.getElementById('term-modo').value,ts:new Date().toISOString()});toast('✓ Configuración de impresora guardada y publicada');};
+window.imprimirTaco=async function(){const salaNombre=document.getElementById('term-sala').value,sala=salas.find(s=>s.name===salaNombre),desde=parseInt(document.getElementById('term-desde').value)||1,hasta=parseInt(document.getElementById('term-hasta').value)||100,ancho=document.getElementById('term-ancho').value,snap=await get(ref(db,'config/logo')),lg=snap.val()||{},evento=lg.evento||'Rifa',logoTxt=lg.txt||'🎫';const tickets=[];for(let n=desde;n<=hasta;n++){const hash=await sha(evento+'-'+n+'-'+SECRET);tickets.push({n,hash,evento,sala:salaNombre,logoTxt});}const anchoPx=ancho==='80'?302:208;const html=`<html><head><title>Taco ${salaNombre}</title><style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:'Courier New',monospace;background:#fff;color:#000}.ticket{width:${anchoPx}px;border-bottom:1px dashed #000;padding:8px;page-break-inside:avoid;text-align:center}.t-logo{font-size:20px}.t-ev{font-size:9px}.t-sala{font-size:11px;font-weight:700;margin:2px 0}.t-num{font-size:36px;font-weight:700;letter-spacing:2px;margin:4px 0}.t-code{font-size:8px;background:#eee;padding:3px 5px;border-radius:3px;margin:3px 0;word-break:break-all}.t-foot{font-size:7px;color:#555;margin-top:3px}@media print{body{margin:0}}</style></head><body>${tickets.map(t=>`<div class="ticket"><div class="t-logo">${t.logoTxt}</div><div class="t-ev">${t.evento}</div><div class="t-sala">SALA ${t.sala}</div><div class="t-num">#${String(t.n).padStart(3,'0')}</div><div class="t-code">🔐 ${t.hash}</div><div class="t-foot">Papeleta oficial</div></div>`).join('')}</body></html>`;const w=window.open('','_blank');if(w){w.document.write(html);w.document.close();setTimeout(()=>w.print(),600);}};
+
+// MÁQUINAS
+function parsearMaquinas(txt){const nums=new Set();txt.split(/[,;\s]+/).map(p=>p.trim()).filter(p=>p).forEach(p=>{if(p.includes('-')){const[a,b]=p.split('-').map(x=>parseInt(x.trim()));if(!isNaN(a)&&!isNaN(b)&&b>=a&&(b-a)<=500)for(let i=a;i<=b;i++)nums.add(i);}else{const n=parseInt(p);if(!isNaN(n)&&n>0)nums.add(n);}});return[...nums].sort((a,b)=>a-b);}
+window.actualizarPreviewMaquinas=function(){const txt=document.getElementById('maq-input').value.trim(),prev=document.getElementById('maq-parse-preview');if(!txt){prev.textContent='';return;}const nums=parsearMaquinas(txt);const disp=nums.filter(n=>!maqExcluidas.has(n));if(!nums.length){prev.style.color='var(--red)';prev.textContent='⚠️ Sin números válidos';return;}prev.style.color='var(--blue)';let msg=`✓ ${nums.length} máquinas detectadas`;if(maqExcluidas.size>0)msg+=` · ${disp.length} disponibles (${maqExcluidas.size} excluidas)`;msg+=` → [${nums.slice(0,8).join(', ')}${nums.length>8?'...':''}]`;prev.textContent=msg;};
+window.sortearMaquinas=async function(){const txt=document.getElementById('maq-input').value.trim();if(!txt){toast('Introduce los números de máquinas','#f87171');return;}const todos=parsearMaquinas(txt),disp=todos.filter(n=>!maqExcluidas.has(n));if(!disp.length){toast('No quedan máquinas disponibles. Reinicia.','#f87171');return;}const cuantos=Math.min(parseInt(document.getElementById('maq-ganadores').value)||1,disp.length);const ganadores=[...disp].sort(()=>Math.random()-.5).slice(0,cuantos);const ts=new Date().toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit',second:'2-digit'});maqHistorial.push({ganadores:[...ganadores],ts,ronda:maqHistorial.length+1});await set(ref(db,'config/sorteoMaquinas'),{ganadores,disponibles:disp.length,total:todos.length,ts,tipo:'maquinas',ronda:maqHistorial.length,activo:true});const animTipo=document.getElementById('maq-anim').value;if(animTipo!=='ninguna')await set(ref(db,'config/animacion'),{activo:true,tipo:animTipo,num:ganadores[0],sala:'MÁQUINAS',color:'#f59e0b',ts:new Date().toISOString()});renderResultadoMaquinas(ganadores,ts);renderHistorialMaquinas();toast('🎰 ¡Ganadores sorteados!','#fbbf24');};
+function renderResultadoMaquinas(ganadores,ts){document.getElementById('maq-resultado-box').style.display='';document.getElementById('maq-hist-box').style.display='';document.getElementById('maq-ganadores-lista').innerHTML=ganadores.map(n=>`<div class="maq-ganador-chip"><div style="font-size:10px;color:var(--gold-dark);font-weight:700;margin-bottom:4px">🏆 GANADOR</div><div class="maq-num">Nº ${n}</div></div>`).join('');document.getElementById('maq-ts').textContent=`Sorteado a las ${ts} · ${ganadores.length} ganador${ganadores.length!==1?'es':''}`;}
+function renderHistorialMaquinas(){document.getElementById('maq-hist-lista').innerHTML=[...maqHistorial].reverse().map(r=>`<div class="hist-row"><span style="font-size:11px;color:var(--txt3);min-width:50px">Ronda ${r.ronda}</span><span style="color:var(--gold);font-weight:700;font-family:'Bebas Neue',sans-serif;font-size:15px;letter-spacing:1px">${r.ganadores.map(n=>'Nº '+n).join('  ·  ')}</span><span class="info" style="margin-left:auto">${r.ts}</span></div>`).join('');}
+window.excluirGanadores=function(){if(!maqHistorial.length){toast('Sortea primero','#f87171');return;}const ult=maqHistorial[maqHistorial.length-1].ganadores;ult.forEach(n=>maqExcluidas.add(n));actualizarPreviewMaquinas();const txt=document.getElementById('maq-input').value.trim();const todos=parsearMaquinas(txt);const restantes=todos.filter(n=>!maqExcluidas.has(n));toast(`✓ ${ult.length} excluido${ult.length!==1?'s':''}. Quedan ${restantes.length} disponibles`);};
+window.resetMaquinas=async function(){if(maqHistorial.length>0&&!confirm('¿Reiniciar el sorteo de máquinas?'))return;maqExcluidas=new Set();maqHistorial=[];document.getElementById('maq-input').value='';document.getElementById('maq-resultado-box').style.display='none';document.getElementById('maq-hist-box').style.display='none';document.getElementById('maq-parse-preview').textContent='';await set(ref(db,'config/sorteoMaquinas'),{activo:false});toast('↺ Máquinas reiniciadas');};
+
+// SEGURIDAD
+window.guardarEmail=async function(){const email=document.getElementById('adm-email').value.trim();if(!email||!email.includes('@')){showMsg('email-err','Email inválido');return;}try{const snap=await get(ref(db,'config/auth'));const v=snap.val()||{};await set(ref(db,'config/auth'),Object.assign({},v,{email:email}));showMsg('email-ok');renderSegEstado();}catch(e){showMsg('email-err','Error al guardar');}};
+window.cambiarPassPanel=async function(){const actual=document.getElementById('pass-actual').value,nueva=document.getElementById('pass-nueva').value,nueva2=document.getElementById('pass-nueva2').value;if(actual!==passPanel&&actual!==PASS_EMERGENCIA){showMsg('pass-panel-err','Contraseña actual incorrecta');return;}if(nueva.length<6){showMsg('pass-panel-err','Mínimo 6 caracteres');return;}if(nueva!==nueva2){showMsg('pass-panel-err','Las contraseñas no coinciden');return;}try{const snap=await get(ref(db,'config/auth'));const v=snap.val()||{};await set(ref(db,'config/auth'),Object.assign({},v,{passPanel:nueva}));passPanel=nueva;showMsg('pass-panel-ok');document.getElementById('pass-actual').value='';document.getElementById('pass-nueva').value='';document.getElementById('pass-nueva2').value='';renderSegEstado();}catch(e){showMsg('pass-panel-err','Error al guardar');}};
+window.cambiarPassTV=async function(){const nueva=document.getElementById('pass-tv-nueva').value,nueva2=document.getElementById('pass-tv-nueva2').value;if(nueva.length<6){showMsg('pass-tv-err','Mínimo 6 caracteres');return;}if(nueva!==nueva2){showMsg('pass-tv-err','Las contraseñas no coinciden');return;}try{const snap=await get(ref(db,'config/auth'));const v=snap.val()||{};await set(ref(db,'config/auth'),Object.assign({},v,{passTV:nueva}));showMsg('pass-tv-ok');document.getElementById('pass-tv-nueva').value='';document.getElementById('pass-tv-nueva2').value='';renderSegEstado();}catch(e){showMsg('pass-tv-err','Error al guardar');}};
+window.checkStrength=function(val,id){const el=document.getElementById(id);if(!val){el.style.width='0%';return;}let s=0;if(val.length>=6)s+=25;if(val.length>=10)s+=25;if(/[A-Z]/.test(val))s+=25;if(/[0-9]/.test(val)||/[^a-zA-Z0-9]/.test(val))s+=25;el.style.width=s+'%';el.style.background=s<50?'var(--red)':s<75?'var(--gold)':'var(--green)';};
+async function renderSegEstado(){const snap=await get(ref(db,'config/auth'));const v=snap.val()||{};document.getElementById('seg-estado').innerHTML=`<div>📧 Email administrador: <strong style="color:var(--blue)">${v.email||'No configurado'}</strong></div><div>🔑 Contraseña panel: <strong style="color:${v.passPanel?'var(--green)':'var(--gold)'}">${v.passPanel?'✓ Personalizada':'⚠️ Usando contraseña inicial (admin)'}</strong></div><div>📺 Contraseña TV General: <strong style="color:${v.passTV?'var(--green)':'var(--gold)'}">${v.passTV?'✓ Personalizada':'⚠️ Usando contraseña inicial (admin)'}</strong></div>`;if(v.email)document.getElementById('adm-email').value=v.email;}
+
+// LOGO
+window.abrirLogoPanel=()=>document.getElementById('logo-overlay').classList.add('show');
+window.cerrarLogoPanel=()=>document.getElementById('logo-overlay').classList.remove('show');
+window.previewFile=function(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>{logoImgData=ev.target.result;document.getElementById('logo-preview-box').innerHTML=`<img src="${logoImgData}" style="max-height:60px;border-radius:8px">`;};r.readAsDataURL(f);};
+window.guardarLogo=async function(){const txt=document.getElementById('ev-logo-txt').value.trim(),color=document.getElementById('ev-logo-color').value,url=document.getElementById('ev-logo-url').value.trim(),evento=document.getElementById('ev-nombre').value.trim(),bg=document.getElementById('ev-bg').value;await set(ref(db,'config/logo'),{txt,color,evento,url,img:logoImgData,bg,ts:new Date().toISOString()});document.getElementById('evento-label').textContent=evento?'· '+evento:'';cerrarLogoPanel();toast('✓ Logo publicado en todas las pantallas');};
+function applyLogoPreview(l){if(l.img)document.getElementById('logo-preview-box').innerHTML=`<img src="${l.img}" style="max-height:60px;border-radius:8px">`;else if(l.txt)document.getElementById('logo-preview-box').innerHTML=`<span style="font-size:32px">${l.txt}</span>`;if(l.txt)document.getElementById('ev-logo-txt').value=l.txt;if(l.evento)document.getElementById('ev-nombre').value=l.evento;if(l.url)document.getElementById('ev-logo-url').value=l.url;if(l.color)document.getElementById('ev-logo-color').value=l.color;if(l.bg)document.getElementById('ev-bg').value=l.bg;}
+
+// VÍDEO
+window.abrirVideoUpload=()=>document.getElementById('video-modal').classList.add('show');
+window.previewVideo=function(e){const f=e.target.files[0];if(!f)return;const url=URL.createObjectURL(f);const vp=document.getElementById('video-preview');vp.src=url;document.getElementById('video-preview-wrap').style.display='';window._videoPendiente=f;};
+// ══ SORTEO POR DNI / TELÉFONO ══
+let dniListaAuth = [], dniExcluidos = [], dniRegistros = [];
+
+// Cifrado simple del DNI para privacidad
+function cifrarDoc(doc){
+  const d = doc.trim().toUpperCase();
+  return btoa(d).split('').reverse().join('');
+}
+function descifrarDoc(enc){
+  try{ return atob(enc.split('').reverse().join('')); }catch(e){ return '???'; }
+}
+function ocultarDoc(doc){
+  // Muestra ***456-X o ***789
+  const d = doc.trim().toUpperCase();
+  if(d.length <= 4) return '***';
+  return '***' + d.slice(-4);
+}
+
+async function renderDniPanel(){
+  // Cargar lista auth desde Firebase
+  try{
+    const snap = await get(ref(db,'config/dniAuth'));
+    const v = snap.val();
+    if(v && v.lista){
+      dniListaAuth = v.lista.map(x=>descifrarDoc(x));
+      document.getElementById('dni-lista-auth').value = dniListaAuth.join('\n');
+      document.getElementById('dni-auth-count').textContent = dniListaAuth.length + ' documentos autorizados';
+    }
+  }catch(e){}
+  // Cargar excluidos
+  try{
+    const snap = await get(ref(db,'dniExcluidos'));
+    dniExcluidos = [];
+    snap.forEach(function(c){var d=c.val();d.fbKey=c.key;dniExcluidos.push(d);});
+    renderExcluidos();
+  }catch(e){}
+  // Cargar registros
+  onValue(ref(db,'dniRegistros'), snap=>{
+    dniRegistros = [];
+    snap.forEach(function(c){var d=c.val();d.fbKey=c.key;dniRegistros.push(d);});
+    renderDniRegistros();
+  });
+}
+
+window.guardarListaAuth = async function(){
+  const txt = document.getElementById('dni-lista-auth').value.trim();
+  const docs = txt.split('\n').map(x=>x.trim().toUpperCase()).filter(x=>x);
+  const cifrados = docs.map(d => cifrarDoc(d));
+  await set(ref(db,'config/dniAuth'), {lista: cifrados, ts: new Date().toISOString()});
+  dniListaAuth = docs;
+  document.getElementById('dni-auth-count').textContent = docs.length + ' documentos autorizados';
+  toast('✓ Lista guardada — ' + docs.length + ' documentos');
+};
+
+window.exportarListaAuth = function(){
+  const txt = document.getElementById('dni-lista-auth').value.trim();
+  const blob = new Blob([txt], {type:'text/plain'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'lista_autorizados.txt';
+  a.click();
+};
+
+function renderDniRegistros(){
+  const lista = document.getElementById('dni-registros-lista');
+  const excluidos = new Set(dniExcluidos.map(x=>x.doc));
+  const participan = dniRegistros.filter(r => {
+    const doc = descifrarDoc(r.docCifrado);
+    return dniListaAuth.includes(doc) && !excluidos.has(doc);
+  });
+  const noParticipan = dniRegistros.filter(r => {
+    const doc = descifrarDoc(r.docCifrado);
+    return !dniListaAuth.includes(doc) || excluidos.has(doc);
+  });
+  document.getElementById('dni-stats').textContent =
+    `${dniRegistros.length} registrados · ${participan.length} participan · ${noParticipan.length} no participan`;
+  if(!dniRegistros.length){ lista.innerHTML='<div class="info">Sin registros aún</div>'; return; }
+  lista.innerHTML = dniRegistros.map(r => {
+    const doc = descifrarDoc(r.docCifrado);
+    const participa = dniListaAuth.includes(doc) && !excluidos.has(doc);
+    return `<div class="hist-row">
+      <div class="h-dot" style="background:${participa?'var(--green)':'var(--txt3)'}"></div>
+      <strong style="min-width:120px;font-family:'Courier New',monospace">${doc}</strong>
+      <span class="info">${r.sala} · ${r.ts}</span>
+      <span style="font-size:11px;font-weight:700;color:${participa?'var(--green)':'var(--txt3)'};margin-left:auto">${participa?'✓ Participa':'No participa'}</span>
+    </div>`;
+  }).join('');
+}
+
+function renderExcluidos(){
+  const c = document.getElementById('dni-excluidos-lista');
+  if(!dniExcluidos.length){ c.innerHTML='<span class="info">Sin excluidos</span>'; return; }
+  c.innerHTML = dniExcluidos.map(x =>
+    `<span class="neg-chip">🚫 ${x.doc}${x.motivo?' · '+x.motivo:''}<button onclick="quitarExcluidoDNI('${x.fbKey}')">×</button></span>`
+  ).join('');
+}
+
+window.excluirDNI = async function(){
+  const doc = document.getElementById('dni-excluir-inp').value.trim().toUpperCase();
+  const motivo = document.getElementById('dni-excluir-motivo').value.trim();
+  if(!doc){ toast('Introduce un documento','#fbbf24'); return; }
+  if(dniExcluidos.find(x=>x.doc===doc)){ toast('Ya está excluido','#fbbf24'); return; }
+  await push(ref(db,'dniExcluidos'), {doc, motivo, ts:new Date().toISOString()});
+  document.getElementById('dni-excluir-inp').value = '';
+  document.getElementById('dni-excluir-motivo').value = '';
+  toast('🚫 ' + doc + ' excluido del sorteo');
+};
+
+window.quitarExcluidoDNI = async function(k){
+  await remove(ref(db,'dniExcluidos/'+k));
+  toast('✓ Documento reincorporado al sorteo');
+};
+
+window.sortearDNI = async function(){
+  const excluidos = new Set(dniExcluidos.map(x=>x.doc));
+  const participantes = dniRegistros.filter(r => {
+    const doc = descifrarDoc(r.docCifrado);
+    return dniListaAuth.includes(doc) && !excluidos.has(doc);
+  });
+  if(!participantes.length){ toast('Sin participantes registrados aún','#f87171'); return; }
+  const ganador = participantes[Math.floor(Math.random() * participantes.length)];
+  const docGanador = descifrarDoc(ganador.docCifrado);
+  const docOculto = ocultarDoc(docGanador);
+  const ts = new Date().toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  // Publicar en Firebase para TV
+  await set(ref(db,'config/ultimoSorteado'),{
+    tipo:'dni', docOculto, sala:ganador.sala, ts,
+    nombre: ganador.nombre||null
+  });
+  await set(ref(db,'config/sorteoEnCurso'),{activo:true,tipo:'dni',ts});
+  setTimeout(()=>set(ref(db,'config/sorteoEnCurso'),{activo:false,ts}), 4000);
+  // Mostrar en panel
+  document.getElementById('dni-resultado-box').style.display = '';
+  document.getElementById('dni-ganador-num').textContent = docOculto;
+  document.getElementById('dni-ganador-ts').textContent = 'Sorteado a las ' + ts + ' · Sala ' + ganador.sala + ' · ' + participantes.length + ' participantes';
+  toast('🏆 Ganador: ' + docOculto, '#fbbf24');
+};
+
+// RONDAS NOMBRES
+window.nuevaRondaNombres=async function(){
+  const snap=await get(ref(db,'config/eventoEstado'));
+  const v=snap.val()||{};
+  const r=(v.ronda||1)+1;
+  if(!confirm(`¿Iniciar Ronda ${r} de nombres? Los ganadores anteriores quedan excluidos.`))return;
+  await set(ref(db,'config/eventoEstado'),{estado:'activo',ronda:r,ts:new Date().toISOString()});
+  // NO borramos sorteadosNombres — quedan excluidos por nombresUsados
+  document.getElementById('nombre-reveal').textContent='Esperando sorteo...';
+  document.getElementById('nombre-reveal').style.color='var(--gold)';
+  document.getElementById('btn-nueva-ronda-nom').style.display='none';
+  updateRondaBadge(r);
+  toast(`🔄 Ronda ${r} de nombres iniciada`,'#4ade80');
+};
+
+// RONDAS DNI
+window.nuevaRondaDNI=async function(){
+  const snap=await get(ref(db,'config/eventoEstado'));
+  const v=snap.val()||{};
+  const r=(v.ronda||1)+1;
+  if(!confirm(`¿Iniciar Ronda ${r} de DNI? Se limpian los registros y los clientes vuelven a registrarse.`))return;
+  await set(ref(db,'config/eventoEstado'),{estado:'activo',ronda:r,ts:new Date().toISOString()});
+  await remove(ref(db,'dniRegistros'));
+  document.getElementById('dni-resultado-box').style.display='none';
+  updateRondaBadge(r);
+  toast(`🔄 Ronda ${r} de DNI iniciada — los clientes deben registrarse de nuevo`,'#4ade80');
+};
+
+window.limpiarRegistrosDNI = async function(){
+  if(!confirm('¿Borrar todos los registros de DNI de hoy?'))return;
+  await remove(ref(db,'dniRegistros'));
+  toast('↺ Registros borrados');
+};
+
+// ══ ESTADÍSTICAS ══
+function renderEstadisticas(){
+  const grid = document.getElementById('stats-grid');
+  const statsSalas = document.getElementById('stats-salas');
+
+  // Métricas globales
+  const totalSorteos = sorteados.length;
+  const totalPend = sorteados.filter(x=>!x.recogido).length;
+  const totalRec = sorteados.filter(x=>x.recogido).length;
+  const totalEntregadas = activaciones.filter(a=>a.estado==='entregado').length;
+  const totalPanico = activaciones.filter(a=>a.panico).length;
+  const totalNegra = listaNegra.length;
+  const totalPapeletas = salas.reduce((s,x)=>s+(x.hasta-x.desde+1),0);
+  const pctEntrega = totalPapeletas>0 ? Math.round(totalEntregadas/totalPapeletas*100) : 0;
+  const pctCobro = totalSorteos>0 ? Math.round(totalRec/totalSorteos*100) : 0;
+
+  const metricaHTML = (label, valor, color='var(--txt)', sub='') =>
+    `<div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:14px;text-align:center;transition:border .2s" onmouseover="this.style.borderColor='rgba(255,255,255,.2)'" onmouseout="this.style.borderColor='var(--border)'">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:38px;color:${color};line-height:1;text-shadow:0 0 20px ${color}44">${valor}</div>
+      <div style="font-size:11px;color:var(--txt3);margin-top:4px;font-weight:600;text-transform:uppercase;letter-spacing:.5px">${label}</div>
+      ${sub?`<div style="font-size:10px;color:var(--txt3);margin-top:2px">${sub}</div>`:''}
+    </div>`;
+
+  grid.innerHTML =
+    metricaHTML('Sorteos realizados', totalSorteos, 'var(--blue)') +
+    metricaHTML('Premios pendientes', totalPend, totalPend>0?'var(--red)':'var(--txt3)') +
+    metricaHTML('Premios recogidos', totalRec, 'var(--green)', pctCobro+'% de cobro') +
+    metricaHTML('Papeletas entregadas', totalEntregadas, 'var(--gold)', pctEntrega+'% del total') +
+    metricaHTML('Papeletas totales', totalPapeletas, 'var(--txt2)') +
+    metricaHTML('Lista negra', totalNegra, totalNegra>0?'var(--red)':'var(--txt3)') +
+    metricaHTML('Alertas pánico', totalPanico, totalPanico>0?'var(--red)':'var(--txt3)') +
+    metricaHTML('Salas activas', salas.filter(s=>s.activa).length+'/'+salas.length, 'var(--green)');
+
+  // Por sala
+  if(!salas.length){ statsSalas.innerHTML='<div class="info">Sin salas</div>'; return; }
+  statsSalas.innerHTML = salas.map(s=>{
+    const ent = activaciones.filter(a=>a.sala===s.name&&a.estado==='entregado').length;
+    const prem = sorteados.filter(x=>x.sala===s.name).length;
+    const rec = sorteados.filter(x=>x.sala===s.name&&x.recogido).length;
+    const total = s.hasta-s.desde+1;
+    const pctE = total>0?Math.round(ent/total*100):0;
+    const pctR = prem>0?Math.round(rec/prem*100):0;
+    const barW = pctE;
+    return `<div style="background:var(--bg);border:1px solid ${s.color}22;border-radius:var(--radius);padding:12px 14px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:18px;color:${s.color};letter-spacing:1px">${s.name}</div>
+        <div style="font-size:11px;color:var(--txt3)">${s.desde}–${s.hasta} · ${total} papeletas</div>
+      </div>
+      <div style="display:flex;gap:16px;margin-bottom:8px;flex-wrap:wrap">
+        <span style="font-size:12px;color:var(--blue)">📤 ${ent} entregadas (${pctE}%)</span>
+        <span style="font-size:12px;color:var(--red)">🏆 ${prem} premiadas</span>
+        <span style="font-size:12px;color:var(--green)">✓ ${rec} recogidas (${pctR}%)</span>
+      </div>
+      <div style="background:var(--bg3);border-radius:3px;height:6px;overflow:hidden">
+        <div style="height:100%;background:linear-gradient(90deg,${s.color}88,${s.color});width:${barW}%;border-radius:3px;transition:width .5s"></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+window.exportarHistorialPDF = function(){
+  if(!sorteados.length){ toast('Sin sorteos que exportar','#fbbf24'); return; }
+  var css = '*{box-sizing:border-box}body{font-family:Arial,sans-serif;padding:20px;color:#111}';
+  css += 'h1{font-size:20px;margin-bottom:4px}h2{font-size:14px;font-weight:normal;color:#666;margin-bottom:16px}';
+  css += 'table{width:100%;border-collapse:collapse;font-size:13px}';
+  css += 'th{background:#1e293b;color:#fff;padding:8px 12px;text-align:left;font-size:12px;text-transform:uppercase}';
+  css += 'td{padding:7px 12px;border-bottom:1px solid #eee}tr:nth-child(even){background:#f8fafc}';
+  css += '.rec{color:#16a34a;font-weight:700}.pend{color:#dc2626;font-weight:700}';
+  css += '.sala-chip{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700;background:#e2e8f0}';
+  css += '.resumen{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px}';
+  css += '.res-box{background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px;text-align:center}';
+  css += '.res-num{font-size:28px;font-weight:900;color:#1e293b}.res-lbl{font-size:11px;color:#94a3b8;margin-top:2px}';
+  css += '@media print{body{padding:0}}';
+  var fecha = new Date().toLocaleDateString('es-ES',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+  var hora = new Date().toLocaleTimeString('es-ES');
+  var filas = sorteados.map(function(s,i){
+    return '<tr><td>'+(i+1)+'</td><td><strong>#'+String(s.num).padStart(3,'0')+'</strong></td>'
+      +'<td><span class="sala-chip">'+s.sala+'</span></td><td>'+s.ts+'</td>'
+      +'<td class="'+(s.recogido?'rec':'pend')+'">'+(s.recogido?'✓ Recogido':'⏳ Pendiente')+'</td></tr>';
+  }).join('');
+  var doc = '<html><head><title>Historial</title><style>'+css+'</style></head><body>';
+  doc += '<h1>Historial del Evento — '+fecha+'</h1>';
+  doc += '<h2>Generado a las '+hora+' · '+sorteados.length+' sorteos</h2>';
+  doc += '<div class="resumen">';
+  doc += '<div class="res-box"><div class="res-num">'+sorteados.length+'</div><div class="res-lbl">Sorteos</div></div>';
+  doc += '<div class="res-box"><div class="res-num">'+sorteados.filter(function(x){return x.recogido;}).length+'</div><div class="res-lbl">Recogidos</div></div>';
+  doc += '<div class="res-box"><div class="res-num">'+sorteados.filter(function(x){return !x.recogido;}).length+'</div><div class="res-lbl">Pendientes</div></div>';
+  doc += '<div class="res-box"><div class="res-num">'+salas.length+'</div><div class="res-lbl">Salas</div></div>';
+  doc += '</div><table><thead><tr><th>#</th><th>Numero</th><th>Sala</th><th>Hora</th><th>Estado</th></tr></thead>';
+  doc += '<tbody>'+filas+'</tbody></table></body></html>';
+  var w = window.open('','_blank');
+  if(w){w.document.write(doc);w.document.close();setTimeout(function(){w.print();},500);}
+};
+
+window.exportarHistorialCSV = function(){
+  if(!sorteados.length){ toast('Sin sorteos que exportar','#fbbf24'); return; }
+  const rows = [['#','Número','Sala','Hora','Estado']];
+  sorteados.forEach((s,i) => rows.push([i+1,s.num,s.sala,s.ts,s.recogido?'Recogido':'Pendiente']));
+  const csv = rows.map(r=>r.join(',')).join('\n');
+  const blob = new Blob([csv],{type:'text/csv;charset=utf-8;'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'historial_sorteo_'+new Date().toLocaleDateString('es-ES').replace(/\//g,'-')+'.csv';
+  a.click();
+  toast('✓ CSV descargado');
+};
+
+window.guardarVideo=function(){const f=window._videoPendiente;if(!f){toast('Selecciona un vídeo primero','#f87171');return;}const r=new FileReader();r.onload=function(e){try{localStorage.setItem('rifa_video_src',e.target.result);document.getElementById('video-ok').style.display='block';window._videoPendiente=null;toast('✓ Vídeo guardado');}catch(err){toast('El vídeo es demasiado grande. Usa uno menor a 5MB.','#f87171');}};r.readAsDataURL(f);};
+</script>
+</body></html>
