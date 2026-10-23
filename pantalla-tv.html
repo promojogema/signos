@@ -360,6 +360,18 @@
 <script>
 'use strict';
 
+// Captura cualquier error de JavaScript (aunque no sea de un video/foto concreto)
+// y lo manda al servidor local, para poder verlo en log.txt sin necesitar F12
+window.addEventListener('error', (e) => {
+  try {
+    fetch('/api/log-error', {
+      method: 'POST',
+      headers: {'Content-Type':'text/plain'},
+      body: `[JS-ERROR] ${e.message} en ${e.filename}:${e.lineno}`
+    }).catch(()=>{});
+  } catch(err) {}
+});
+
 // ════════════════════════════════════════════════════
 // FIREBASE CONFIG (mismo proyecto que el panel)
 // ════════════════════════════════════════════════════
@@ -387,6 +399,8 @@ let currentVol   = 80;
 let PLAYLIST     = [];    // ítems a reproducir ahora
 let curIdx       = 0;
 let playTimer    = null;
+let fadeOutTimer = null; // temporizador del desvanecimiento final del vídeo — hay que cancelarlo al cambiar de item
+let stallCheckInterval = null; // vigilante de vídeo atascado a mitad (PCs lentos/viejos)
 let isPlaying    = false;
 
 let tickerCfg    = {};
@@ -638,6 +652,7 @@ function startPlayer() {
   listenUrgent();
   listenCommands();
   listenEvents();
+  listenMusicaContinua();
   listenSponsors();
   setInterval(heartbeat, 30000); heartbeat();
   setInterval(()=>{ listenFiles(); }, 5 * 60000); // recheck cada 5 min
@@ -1149,7 +1164,7 @@ function applyAssignments() {
       if (f.source === 'local') {
         // URL local: http://localhost:8080/contenido/video.mp4
         const filename = f.url ? f.url.split('/').pop() : f.name;
-        f.url = 'http://localhost:8080/' + LOCAL_BASE_URL + '/' + filename;
+        f.url = 'http://localhost:8080/' + LOCAL_BASE_URL + '/' + encodeURIComponent(filename);
         f._isLocal = true;
         console.log('[local] URL local:', f.url);
       } else {
@@ -1310,6 +1325,13 @@ function resetImg() {
 }
 
 // Detecta el tipo de un ítem: primero por item.type, luego por extensión de URL
+function reportarError(msg) {
+  console.error(msg);
+  try {
+    fetch('/api/log-error', { method: 'POST', headers: {'Content-Type':'text/plain'}, body: msg }).catch(()=>{});
+  } catch(e) {}
+}
+
 function detectType(item) {
   const t = (item.type || '').toLowerCase();
   if (t.startsWith('video/')) return 'video';
@@ -1334,6 +1356,25 @@ let _musicQueue  = [];    // lista de canciones en orden
 let _videoPlaying = false; // true = hay vídeo sonando, música en pausa
 let _musicIdx    = 0;     // canción actual
 let _musicActive = false; // true = motor de música arrancado
+let _musicaContinua = false; // opcion del panel: la musica no se interrumpe y se silencia el sonido de los videos
+
+// Decide como conviven la musica de fondo y el sonido de un video que empieza.
+// Con "musica continua" activada Y canciones en la lista: el video se ve sin su sonido
+// y la musica sigue sonando. En cualquier otro caso: comportamiento de siempre
+// (la musica se pausa y se oye el sonido del video).
+function prepararAudioParaVideo(vid) {
+  const continua = _musicaContinua && _musicActive && _musicQueue.length > 0;
+  if (continua) {
+    _videoPlaying = false;
+    vid.muted = true;
+    if (MUSIC_EL.paused && MUSIC_EL.src) MUSIC_EL.play().catch(() => {});
+  } else {
+    _videoPlaying = true;
+    try { MUSIC_EL.pause(); } catch (e) {}
+    vid.muted = false;
+  }
+  return continua;
+}
 
 function initMusicPlayer(songs) {
   if (!songs || !songs.length) { stopAllMusic(); return; }
@@ -1421,21 +1462,31 @@ function playItem(idx) {
   const kind = detectType(item);
   console.log(`[player] ${curIdx+1}/${PLAYLIST.length} — ${kind} — ${item.name||item.url.slice(-35)}`);
 
-  // Watchdog
-  playTimer = setTimeout(() => { console.warn('[watchdog]', item.name); nextItem(); }, 45000);
+  // Aviso si un fichero de la lista NO es local (podria colgarse esperando red externa)
+  if (item.url && !item.url.startsWith('http://localhost')) {
+    reportarError(`[AVISO] item no-local en la lista, puede colgarse esperando red: ${item.name||''} -> ${item.url}`);
+  }
+
+  // Watchdog: si en 20s no ha cargado nada, lo registramos (antes solo salia por consola,
+  // invisible sin F12) y forzamos pasar al siguiente para no quedarnos colgados en negro
+  clearTimeout(fadeOutTimer);
+  clearInterval(stallCheckInterval);
+  playTimer = setTimeout(() => {
+    reportarError(`[WATCHDOG] "${item.name||item.url}" no cargo en 20s, saltando al siguiente`);
+    nextItem();
+  }, 20000);
 
   const vid = ge('vid');
   const img = ge('img');
   const aud = ge('aud');
 
   if (kind === 'video') {
-    // Vídeo: pausar música y ocultar fondo borroso de foto anterior
-    _videoPlaying = true;
+    // Vídeo: ocultar fondo borroso de foto anterior y decidir qué pasa con la música
+    // (se pausa y suena el vídeo, o sigue la música con el vídeo sin sonido)
     const bg = ge('img-bg');
     if (bg) { bg.classList.remove('show'); bg.removeAttribute('src'); }
-    try { MUSIC_EL.pause(); } catch(e) {}
+    prepararAudioParaVideo(vid);
     aud.pause();    vid.volume = currentVol / 100;
-    vid.muted  = false;
     vid.src    = item.url;
 
     // Asegurar que cualquier foto previa se desvanece suavemente
@@ -1454,7 +1505,8 @@ function playItem(idx) {
       const totalMs = Math.max(1000, (vid.duration + 2) * 1000);
       playTimer = setTimeout(nextItem, totalMs);
       const fadeOutAt = Math.max(0, totalMs - 900); // 0.9s antes del cambio
-      setTimeout(() => { if (vid.src) vid.style.opacity = 0; }, fadeOutAt);
+      clearTimeout(fadeOutTimer);
+      fadeOutTimer = setTimeout(() => { if (vid.src) vid.style.opacity = 0; }, fadeOutAt);
     };
     vid.onended = () => {
       _videoPlaying = false;
@@ -1464,7 +1516,29 @@ function playItem(idx) {
       }
       nextItem();
     };
-    vid.onerror = () => { console.error('[vid] Error:', item.url); nextItem(); };
+    vid.onerror = () => { reportarError(`[VIDEO] fallo al cargar: ${item.url}`); nextItem(); };
+
+    // Vigilante de atasco a mitad de reproducción: en PCs lentos/viejos un vídeo
+    // puede quedarse "colgado" a tirones sin llegar a disparar onerror ni onended.
+    // Si el tiempo del vídeo no avanza durante 8s seguidos, lo damos por atascado
+    // y saltamos al siguiente, sin esperar a que alguien le de a play a mano.
+    let ultimoTiempoVisto = -1;
+    let segundosSinAvanzar = 0;
+    clearInterval(stallCheckInterval);
+    stallCheckInterval = setInterval(() => {
+      if (vid.paused || vid.ended || !vid.src) return;
+      if (vid.currentTime === ultimoTiempoVisto) {
+        segundosSinAvanzar += 2;
+        if (segundosSinAvanzar >= 8) {
+          reportarError(`[VIDEO-ATASCADO] "${item.name||item.url}" no avanza desde hace 8s (currentTime=${vid.currentTime.toFixed(1)}) — saltando`);
+          clearInterval(stallCheckInterval);
+          nextItem();
+        }
+      } else {
+        ultimoTiempoVisto = vid.currentTime;
+        segundosSinAvanzar = 0;
+      }
+    }, 2000);
 
   } else if (kind === 'image') {
     // Foto — si venía de vídeo, desactivar flag y reanudar música
@@ -1515,11 +1589,15 @@ function playItem(idx) {
     tmp.onerror = () => {
       // Si la URL optimizada falla, intentar con la original
       if (optimizedUrl !== item.url) {
+        reportarError(`[FOTO] fallo con URL optimizada, probando original: ${item.url}`);
         const tmp2 = new Image();
         tmp2.onload = () => { img.src = item.url; img.style.opacity = 1; clearTimeout(playTimer); playTimer = setTimeout(nextItem, (item.duration || 8) * 1000); };
-        tmp2.onerror = () => nextItem();
+        tmp2.onerror = () => { reportarError(`[FOTO] fallo tambien con URL original: ${item.url}`); nextItem(); };
         tmp2.src = item.url;
-      } else { nextItem(); }
+      } else {
+        reportarError(`[FOTO] fallo al cargar: ${item.url}`);
+        nextItem();
+      }
     };
     tmp.src = optimizedUrl;
 
@@ -1843,14 +1921,27 @@ function getEventCountdowns() {
 // ════════════════════════════════════════════════════
 // URGENTE
 // ════════════════════════════════════════════════════
+// Ajuste "musica de fondo continua" de ESTA pantalla (se cambia desde el panel > Pantallas).
+// Se aplica a partir del siguiente video.
+function listenMusicaContinua() {
+  DB.ref(`sys/${sysCode}/screens/${screenId}/musicaContinua`).on('value', snap => {
+    _musicaContinua = snap.val() === true;
+    console.log('[musica] musica continua:', _musicaContinua);
+  });
+}
+
 function listenUrgent() {
   DB.ref(`sys/${sysCode}/urgent`).on('value', snap => {
+    reportarError(`[URGENT-RECIBIDO] sysCode=${sysCode} existe=${snap.exists()} valor=${JSON.stringify(snap.val())}`);
     if (!snap.exists() || !snap.val() || !snap.val().msg) {
       hideUrgent(); return;
     }
     const u = snap.val();
     if (u.expires && Date.now() > u.expires) {
-      DB.ref(`sys/${sysCode}/urgent`).remove(); return;
+      // Ya caducado: lo ocultamos SOLO en esta pantalla, sin borrar el nodo compartido
+      // (si una pantalla lo borrase, cualquier pestaña vieja con la hora desfasada
+      // podria cargarse por error un mensaje nuevo que otra pantalla acaba de recibir)
+      hideUrgent(); return;
     }
     showUrgent(u);
   });
@@ -1943,17 +2034,22 @@ function handleCmd(cmd) {
 // ════════════════════════════════════════════════════
 // EVENTOS ESPECIALES
 // ════════════════════════════════════════════════════
+// Mismas 7 fechas que el panel, en el MISMO formato (DD/MM) — sin conversiones
+// que puedan desincronizarse. Si cambias una fecha, cámbiala también en el panel.
 const BUILTIN_EV = [
-  { id:'navidad',    effect:'snow',      from:'12/22', to:'01/06' },
-  { id:'halloween',  effect:'skulls',    from:'10/28', to:'10/31' },
-  { id:'sanvalentin',effect:'hearts',    from:'02/13', to:'02/14' },
-  { id:'nochevieja', effect:'fireworks', from:'12/31', to:'12/31' },
-  { id:'reyes',      effect:'stars',     from:'01/05', to:'01/06' },
+  { id:'navidad',      effect:'snow',      from:'12/12', to:'06/01' },
+  { id:'reyes',        effect:'stars',     from:'02/01', to:'06/01' },
+  { id:'sanvalentin',  effect:'hearts',    from:'10/02', to:'14/02' },
+  { id:'semana-santa', effect:'none',      from:'01/04', to:'20/04' },
+  { id:'verano',       effect:'summer',    from:'21/06', to:'22/09' },
+  { id:'halloween',    effect:'skulls',    from:'25/10', to:'31/10' },
+  { id:'nochevieja',   effect:'fireworks', from:'28/12', to:'01/01' },
 ];
 
 function listenEvents() {
   DB.ref(`sys/${sysCode}/events`).on('value', snap => {
     evCfg = snap.val() || {};
+    reportarError(`[EVENTS-RECIBIDO] sysCode=${sysCode} evCfg=${JSON.stringify(evCfg)}`);
     checkEvents();
   });
   setInterval(checkEvents, 3600000);
@@ -1967,13 +2063,11 @@ function checkEvents() {
 
   let effect = null;
 
-  // Eventos builtin: from/to en formato MM/DD (ej: '12/22' = 22 de diciembre)
+  // Eventos builtin — mismo formato DD/MM que el panel, comparación directa
   BUILTIN_EV.forEach(ev => {
     const cfg = evCfg[ev.id];
     if (cfg && cfg.enabled === false) return;
-    // Convertir builtin MM/DD a DD/MM para comparar con today
-    const toddmm = s => { const p=s.split('/'); return p[1]+'/'+p[0]; };
-    if (dateInRange(today, toddmm(ev.from), toddmm(ev.to))) {
+    if (dateInRange(today, ev.from, ev.to)) {
       effect = (cfg && cfg.effect) || ev.effect;
     }
   });
@@ -1989,6 +2083,7 @@ function checkEvents() {
   });
 
   console.log('[events] hoy:', today, 'efecto:', effect || 'ninguno');
+  reportarError(`[EVENTS-CALCULO] hoy=${today} efecto=${effect || 'ninguno'}`);
   if (effect) startFx(effect); else stopFx();
 }
 
@@ -2236,16 +2331,15 @@ window.onerror = (msg, src, line, col) => {
   setTimeout(() => location.reload(), 8000);
 };
 
-// 2. Watchdog: si lleva más de 90s sin actividad → recargar
-//    (antes era 150s — lo reducimos para detectar cuelgues antes)
+// 2. Watchdog: si lleva más de 30s sin actividad → recargar (registrado en log.txt)
 setInterval(() => {
   if (_watchdogPaused) return;
   const elapsed = Date.now() - lastActivity;
-  if (isPlaying && elapsed > 90000) {
-    console.warn('[watchdog] Sin actividad ' + Math.round(elapsed/1000) + 's — recargando');
-    location.reload();
+  if (isPlaying && elapsed > 30000) {
+    reportarError(`[WATCHDOG-GENERAL] Sin actividad ${Math.round(elapsed/1000)}s (curIdx=${curIdx}/${PLAYLIST.length}) — recargando pagina`);
+    location.reload(true);
   }
-}, 15000); // comprobar cada 15s en vez de 30s
+}, 10000); // comprobar cada 10s
 
 // 3. Reconexión automática — ya gestionada en el listener online/offline de arriba (línea ~768)
 // El listener existente ya re-sincroniza Firebase al recuperar conexión

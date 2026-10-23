@@ -556,6 +556,8 @@ textarea.inp{resize:vertical;line-height:1.7}
        <span style="color:var(--green);font-size:10px">Deben estar en C:\a\signo\contenidos\</span>
      </div>
     </div>
+    <button class="abtn primary" style="margin-top:8px;width:100%" onclick="buscarFicherosNuevos()">🔄 Buscar ficheros nuevos en la carpeta</button>
+    <div style="font-size:10px;color:var(--text2);margin-top:4px;line-height:1.5">Copia los ficheros a la carpeta de contenidos y pulsa este botón: se añaden solos. Hay que tener abierto el panel en el PC con SIGN.OS (http://localhost:8080).</div>
    </div>
    <!-- Progreso -->
    <div class="upload-progress" id="upload-progress">
@@ -2093,6 +2095,31 @@ function registerLocalFiles(files) {
   toast('📁 ' + count + ' archivo(s) registrado(s) como locales — recuerda copiarlos a C:\\a\\signo\\contenidos\\', 'ok');
 }
 
+// ── BUSCAR FICHEROS NUEVOS EN LA CARPETA LOCAL ─────────────────────────
+// Pregunta a SIGN.OS (servidor local) qué ficheros hay en la carpeta de contenidos y
+// apunta en Firebase los que todavía no están, sin tener que arrastrarlos uno a uno.
+async function buscarFicherosNuevos() {
+  let lista;
+  try {
+    const r = await fetch('http://localhost:8080/api/archivos', {cache:'no-store'});
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const datos = await r.json();
+    if (datos.error) { toast(datos.error + '. ¿Está Google Drive sincronizando?', 'warn'); return; }
+    lista = datos.archivos || [];
+  } catch (e) {
+    toast('No encuentro SIGN.OS. Abre el panel desde el PC que lo tiene: http://localhost:8080/panel-control.html', 'warn');
+    return;
+  }
+  const yaApuntados = new Set(FILES.filter(f => f.source === 'local').map(f => (f.name || '').toLowerCase()));
+  const nuevos = lista.filter(a => !yaApuntados.has(a.name.toLowerCase()));
+  if (!nuevos.length) { toast('No hay ficheros nuevos: todo lo de la carpeta ya está en el panel', 'ok'); return; }
+  const sala = currentSala === 'common' ? 'COMÚN (todas las salas)' : (ROOMS[currentSala]?.name || currentSala);
+  const muestra = nuevos.slice(0, 10).map(a => '• ' + a.name).join('\n') + (nuevos.length > 10 ? '\n… y ' + (nuevos.length - 10) + ' más' : '');
+  if (!confirm('Hay ' + nuevos.length + ' fichero(s) nuevo(s) en la carpeta:\n\n' + muestra + '\n\n¿Añadirlos a: ' + sala + '?')) return;
+  nuevos.forEach(a => saveFileToFirebase(LOCAL_BASE_URL + '/' + encodeURIComponent(a.name), a.name, a.type, 'local'));
+  toast('📁 ' + nuevos.length + ' fichero(s) añadido(s) a ' + sala, 'ok');
+}
+
 function dzDropLocal(e) {
   e.preventDefault();
   ge('drop-zone')?.classList.remove('over');
@@ -2785,6 +2812,10 @@ function renderScreens(){
           onchange="setVol('${sid}',+this.value)">
         <span class="sc-vol-val">${vol}%</span>
       </div>
+      <label style="display:flex;align-items:flex-start;gap:6px;font-size:11px;margin:10px 0 2px;cursor:pointer;line-height:1.4">
+        <input type="checkbox" style="margin-top:2px" ${sc.musicaContinua?'checked':''} onchange="setMusicaContinua('${sid}',this.checked)">
+        <span>🎵 Música de fondo continua<br><span style="color:var(--text2);font-size:10px">Silencia el sonido de los vídeos y no corta la música. Se aplica desde el siguiente vídeo.</span></span>
+      </label>
       <div class="sc-acts">
         <button class="abtn btn-sm" onclick="rebootScreen('${sid}')">↻ Reiniciar</button>
         <button class="abtn btn-sm" onclick="removeScreen('${sid}')">✕ Eliminar</button>
@@ -2817,6 +2848,10 @@ setInterval(() => {
 }, 60000); // comprobar cada minuto
 
 function setVol(sid,vol){DB.ref(`sys/${syncCode}/screens/${sid}/volume`).set(vol);DB.ref(`sys/${syncCode}/commands/${sid}`).set({action:'volume',value:vol,ts:Date.now()});}
+function setMusicaContinua(sid,v){
+  DB.ref(`sys/${syncCode}/screens/${sid}/musicaContinua`).set(!!v);
+  toast(v?'🎵 Música continua activada: se silencia el sonido de los vídeos':'Música continua desactivada','info');
+}
 function rebootScreen(sid){DB.ref(`sys/${syncCode}/commands/${sid}`).set({action:'reload',ts:Date.now()});toast('Reinicio enviado','info');}
 function removeScreen(sid){if(!confirm('¿Eliminar esta pantalla?'))return;DB.ref(`sys/${syncCode}/screens/${sid}`).remove();}
 
@@ -3282,7 +3317,7 @@ const BUILT_IN_EVENTS = [
   {id:'reyes',     name:'Reyes Magos',     emoji:'👑', from:'02/01', to:'06/01', msg:'👑 FELICES REYES MAGOS', effect:'stars'},
   {id:'sanvalentin',name:'San Valentín',   emoji:'❤️',  from:'10/02', to:'14/02', msg:'❤️ FELIZ SAN VALENTÍN · CELEBRA CON NOSOTROS', effect:'hearts'},
   {id:'semana-santa',name:'Semana Santa',  emoji:'✝️',  from:'01/04', to:'20/04', msg:'🌸 FELIZ SEMANA SANTA', effect:'none'},
-  {id:'verano',    name:'Verano',          emoji:'☀️',  from:'21/06', to:'22/09', msg:'☀️ ¡BIENVENIDO EL VERANO! · REFRÉSCATE CON NOSOTROS', effect:'sun'},
+  {id:'verano',    name:'Verano',          emoji:'☀️',  from:'21/06', to:'22/09', msg:'☀️ ¡BIENVENIDO EL VERANO! · REFRÉSCATE CON NOSOTROS', effect:'summer'},
   {id:'halloween', name:'Halloween',       emoji:'🎃', from:'25/10', to:'31/10', msg:'🎃 FELIZ HALLOWEEN · ¡ATRÉVETE A JUGAR!', effect:'none'},
   {id:'nochevieja',name:'Nochevieja',      emoji:'🎆', from:'28/12', to:'01/01', msg:'🎆 FELIZ AÑO NUEVO · ¡CELEBRA CON NOSOTROS!', effect:'fireworks'},
 ];
